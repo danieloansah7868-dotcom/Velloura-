@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800" role="img" aria-label="Hair product placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f3ec"/>
+      <stop offset="1" stop-color="#ece7dc"/>
+    </linearGradient>
+    <linearGradient id="hair" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e2fbd"/>
+      <stop offset="1" stop-color="#14207f"/>
+    </linearGradient>
+    <linearGradient id="hair2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7b1f3b"/>
+      <stop offset="1" stop-color="#5d1730"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <circle cx="480" cy="140" r="140" fill="#ffffff" opacity="0.22"/>
+  <circle cx="120" cy="700" r="180" fill="#1e2fbd" opacity="0.05"/>
+  <g transform="translate(300 330)">
+    <path d="M-160 180 L-170 -10 C-170 -170 -60 -260 0 -260 C60 -260 170 -170 170 -10 L160 180 C130 130 110 90 90 130 C60 190 30 220 0 220 C-30 220 -60 190 -90 130 C-110 90 -130 130 -160 180 Z" fill="url(#hair)"/>
+    <path d="M-170 -10 C-170 -170 -60 -260 0 -260 C60 -260 170 -170 170 -10" fill="none" stroke="url(#hair2)" stroke-width="7" opacity="0.55"/>
+    <path d="M-120 120 C-135 -20 -100 -210 0 -230 C100 -210 135 -20 120 120" fill="none" stroke="#d4af37" stroke-width="2" opacity="0.45"/>
+    <path d="M-90 140 C-110 -10 -80 -190 0 -205 C80 -190 110 -10 90 140" fill="none" stroke="#fff" stroke-width="1.2" opacity="0.28"/>
+    <circle cx="0" cy="-165" r="55" fill="#e8c3a0"/>
+    <path d="M-52 -120 C-62 -70 -52 -15 0 -15 C52 -15 62 -70 52 -120" fill="none" stroke="#d4af37" stroke-width="2" opacity="0.65"/>
+  </g>
+</svg>

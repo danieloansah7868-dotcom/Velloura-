@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800" role="img" aria-label="Jewelry product placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8f4ec"/>
+      <stop offset="1" stop-color="#ede8dc"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d4af37"/>
+      <stop offset="0.5" stop-color="#d4af37"/>
+      <stop offset="1" stop-color="#d4af37"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <circle cx="120" cy="160" r="150" fill="#ffffff" opacity="0.22"/>
+  <circle cx="520" cy="680" r="180" fill="#7b1f3b" opacity="0.05"/>
+  <path d="M0 610 C180 580 420 650 600 610 L600 800 L0 800 Z" fill="#1e2fbd" opacity="0.05"/>
+  <g transform="translate(300 500)">
+    <path d="M0 -330 C-70 -330 -120 -280 -120 -210 C-120 -140 -70 -90 0 -90 C70 -90 120 -140 120 -210 C120 -280 70 -330 0 -330 Z" fill="none" stroke="url(#gold)" stroke-width="6" stroke-linecap="round"/>
+    <path d="M0 -310 C-58 -310 -100 -270 -100 -210 C-100 -150 -58 -105 0 -105 C58 -105 100 -150 100 -210 C100 -270 58 -310 0 -310 Z" fill="#1e2fbd" opacity="0.12"/>
+    <circle cx="0" cy="-332" r="15" fill="url(#gold)"/>
+    <circle cx="0" cy="-332" r="13" fill="none" stroke="#fff" stroke-width="2" opacity="0.5"/>
+    <path d="M-70 -150 L-38 -210 L-6 -170 L38 -210 L70 -150" fill="none" stroke="url(#gold)" stroke-width="2" opacity="0.75"/>
+    <circle cx="-38" cy="-212" r="8" fill="url(#gold)"/>
+    <circle cx="38" cy="-212" r="8" fill="url(#gold)"/>
+  </g>
+</svg>

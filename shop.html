@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shop - VELLOURA</title>
+  <meta name="description" content="Shop fashion, jewelry, hair and wigs from VELLOURA.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="brand-crown" src="assets/crown.svg" alt="" width="30" height="30" aria-hidden="true">
+        <span class="brand-copy">
+          <span class="brand-name">VELLOURA</span>
+          <span class="brand-tag">Fashion &middot; Jewelry &middot; Hair &middot; Wigs</span>
+        </span>
+      </a>
+      <nav class="nav-desktop" aria-label="Main navigation">
+        <a href="index.html">Home</a>
+        <a href="shop.html" class="active">Shop</a>
+        <a href="shop.html?dept=hair">Hair</a>
+        <a href="shop.html?dept=wigs">Wigs</a>
+        <a href="about.html">About</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn" id="open-cart" aria-label="Open shopping bag">Bag<span class="cart-badge" id="cart-badge" hidden>0</span></button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="mobile-nav" aria-label="Main navigation">
+    <a href="index.html">Home</a>
+    <a href="shop.html" class="active">Shop</a>
+    <a href="shop.html?dept=hair">Hair</a>
+        <a href="shop.html?dept=wigs">Wigs</a>
+    <a href="about.html">About</a>
+  </nav>
+
+  <main>
+    <div id="page-notice" class="notice-box" hidden></div>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>Shop Velloura</h2>
+      </div>
+      <div class="choice-group" id="dept-chips">
+        <button class="chip" data-dept="all">All</button>
+        <button class="chip" data-dept="fashion">Fashion</button>
+        <button class="chip" data-dept="jewelry">Jewelry</button>
+        <button class="chip" data-dept="hair">Hair</button>
+        <button class="chip" data-dept="wigs">Wigs</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <p class="muted" id="result-count"></p>
+      <div class="product-grid" id="shop-grid">
+        <p class="loading-note">Loading products...</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <p class="footer-brand">VELLOURA</p>
+        <p>Wear the crown. Shop fashion, jewelry, hair and wigs from Velloura.</p>
+        <div class="footer-socials">
+          <a href="https://www.instagram.com/vellouragh" target="_blank" rel="noopener">Instagram</a>
+          <a href="https://wa.me/233XXXXXXXXX" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Shop</h4>
+        <a href="shop.html?dept=fashion">Fashion</a>
+        <a href="shop.html?dept=jewelry">Jewelry</a>
+        <a href="shop.html?dept=hair">Hair</a>
+        <a href="shop.html?dept=wigs">Wigs</a>
+        <a href="cart-view.html">View Bag</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="about.html">About Velloura</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="delivery-returns.html">Delivery and Returns</a>
+      </div>
+      <div class="footer-bottom">
+        <p>VELLOURA (c) 2026. Made with pride in Ghana.</p>
+      </div>
+    </div>
+  </footer>
+
+  <div class="cart-overlay" id="cart-overlay"></div>
+  <aside class="cart-drawer" id="cart-drawer" aria-label="Shopping bag">
+    <div class="cart-drawer-head">
+      <h2>Your Bag <span id="cart-count-text"></span></h2>
+      <button class="icon-btn" id="close-cart" aria-label="Close bag">X</button>
+    </div>
+    <div class="cart-drawer-body" id="cart-drawer-body"></div>
+  </aside>
+
+  <script type="module" src="js/shop.js"></script>
+</body>
+</html>
