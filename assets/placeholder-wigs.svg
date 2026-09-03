@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800" role="img" aria-label="Wig product placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f8f4ec"/>
+      <stop offset="1" stop-color="#ede8dc"/>
+    </linearGradient>
+    <linearGradient id="wig" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#1e2fbd"/>
+      <stop offset="1" stop-color="#1d3475"/>
+    </linearGradient>
+    <linearGradient id="lace" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#7b1f3b"/>
+      <stop offset="1" stop-color="#5d1730"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <circle cx="490" cy="150" r="150" fill="#ffffff" opacity="0.25"/>
+  <circle cx="110" cy="690" r="180" fill="#1e2fbd" opacity="0.05"/>
+  <g transform="translate(300 360)">
+    <path d="M-170 120 C-170 -80 -80 -220 0 -220 C80 -220 170 -80 170 120 L150 190 C120 150 100 140 85 170 C55 220 20 240 0 240 C-20 240 -55 220 -85 170 C-100 140 -120 150 -150 190 Z" fill="url(#wig)"/>
+    <path d="M-170 120 C-170 -80 -80 -220 0 -220 C80 -220 170 -80 170 120" fill="none" stroke="url(#lace)" stroke-width="6" opacity="0.7"/>
+    <path d="M-120 110 C-135 -30 -95 -200 0 -200 C95 -200 135 -30 120 110" fill="none" stroke="#d4af37" stroke-width="2" opacity="0.5"/>
+    <path d="M-86 140 C-100 -20 -70 -175 0 -185 C70 -175 100 -20 86 140" fill="none" stroke="#fff" stroke-width="1.2" opacity="0.3"/>
+    <circle cx="0" cy="-145" r="50" fill="#e8c3a0"/>
+    <path d="M-46 -105 C-52 -58 -46 -12 0 -12 C46 -12 52 -58 46 -105" fill="none" stroke="#d4af37" stroke-width="2" opacity="0.6"/>
+  </g>
+</svg>

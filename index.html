@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VELLOURA - Fashion, Jewelry, Hair and Wigs</title>
+  <meta name="description" content="VELLOURA is a Ghanaian women's brand for fashion, jewelry, hair and wigs. Shop online and pay by Mobile Money or on delivery.">
+  <link rel="icon" type="image/svg+xml" href="assets/favicon.svg">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
+</head>
+<body>
+  <header class="site-header">
+    <div class="header-inner">
+      <a class="brand" href="index.html">
+        <img class="brand-crown" src="assets/crown.svg" alt="" width="30" height="30" aria-hidden="true">
+        <span class="brand-copy">
+          <span class="brand-name">VELLOURA</span>
+          <span class="brand-tag">Fashion &middot; Jewelry &middot; Hair &middot; Wigs</span>
+        </span>
+      </a>
+      <nav class="nav-desktop" aria-label="Main navigation">
+        <a href="index.html" class="active">Home</a>
+        <a href="shop.html">Shop</a>
+        <a href="shop.html?dept=hair">Hair</a>
+        <a href="shop.html?dept=wigs">Wigs</a>
+        <a href="about.html">About</a>
+      </nav>
+      <div class="header-actions">
+        <button class="icon-btn" id="open-cart" aria-label="Open shopping bag">Bag<span class="cart-badge" id="cart-badge" hidden>0</span></button>
+      </div>
+    </div>
+  </header>
+
+  <nav class="mobile-nav" aria-label="Main navigation">
+    <a href="index.html" class="active">Home</a>
+    <a href="shop.html">Shop</a>
+    <a href="shop.html?dept=hair">Hair</a>
+        <a href="shop.html?dept=wigs">Wigs</a>
+    <a href="about.html">About</a>
+  </nav>
+
+  <main>
+    <div id="page-notice" class="notice-box" hidden></div>
+
+    <section class="hero">
+      <div class="hero-crown" aria-hidden="true">
+        <img src="assets/crown.svg" alt="" width="46" height="46">
+      </div>
+      <p class="hero-kicker">Royal. Feminine. Premium.</p>
+      <h1>Covered. Crowned. Confident.</h1>
+      <p>Fashion, jewelry, hair and wigs made for the modern Ghanaian woman. Shop from your phone and pay your way.</p>
+      <div class="hero-actions">
+        <a class="btn btn-gold" href="shop.html">Shop the collection</a>
+        <a class="btn btn-white" href="shop.html?dept=hair">Shop hair and wigs</a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>Shop by department</h2>
+      </div>
+      <div class="dept-grid">
+        <a class="dept-card" href="shop.html?dept=fashion">
+          <img src="assets/placeholder-fashion.svg" alt="Fashion department" loading="lazy">
+          <div>
+            <h3>Fashion</h3>
+            <p>Streetwear, modest wear and one-of-one thrift finds.</p>
+          </div>
+          <span class="arrow">-&gt;</span>
+        </a>
+        <a class="dept-card" href="shop.html?dept=jewelry">
+          <img src="assets/placeholder-jewelry.svg" alt="Jewelry department" loading="lazy">
+          <div>
+            <h3>Jewelry</h3>
+            <p>Gold plated and tarnish free pieces for every day.</p>
+          </div>
+          <span class="arrow">-&gt;</span>
+        </a>
+        <a class="dept-card" href="shop.html?dept=hair">
+          <img src="assets/placeholder-hair.svg" alt="Hair products" loading="lazy">
+          <div>
+            <h3>Hair</h3>
+            <p>Virgin hair bundles, closures and more. Ready to wear.</p>
+          </div>
+          <span class="arrow">-&gt;</span>
+        </a>
+        <a class="dept-card" href="shop.html?dept=wigs">
+          <img src="assets/placeholder-wigs.svg" alt="Wigs" loading="lazy">
+          <div>
+            <h3>Wigs</h3>
+            <p>Glueless lace fronts and sleek bobs. Shop the look.</p>
+          </div>
+          <span class="arrow">-&gt;</span>
+        </a>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="section-head">
+        <h2>New drops</h2>
+        <a href="shop.html">View all</a>
+      </div>
+      <div class="product-grid" id="new-drops-grid">
+        <p class="loading-note">Loading new drops...</p>
+      </div>
+    </section>
+
+    <section class="section">
+      <div class="trust-strip">
+        <div class="trust-item"><span class="dot"></span> Nationwide delivery in Ghana</div>
+        <div class="trust-item"><span class="dot"></span> Mobile Money payment on order confirmation</div>
+        <div class="trust-item"><span class="dot"></span> Fitting photos on request</div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div>
+        <p class="footer-brand">VELLOURA</p>
+        <p>Wear the crown. Shop fashion, jewelry, hair and wigs from Velloura.</p>
+        <div class="footer-socials">
+          <a href="https://www.instagram.com/vellouragh" target="_blank" rel="noopener">Instagram</a>
+          <a href="https://wa.me/233XXXXXXXXX" target="_blank" rel="noopener">WhatsApp</a>
+        </div>
+      </div>
+      <div class="footer-col">
+        <h4>Shop</h4>
+        <a href="shop.html?dept=fashion">Fashion</a>
+        <a href="shop.html?dept=jewelry">Jewelry</a>
+        <a href="shop.html?dept=hair">Hair</a>
+        <a href="shop.html?dept=wigs">Wigs</a>
+        <a href="cart-view.html">View Bag</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="about.html">About Velloura</a>
+        <a href="terms.html">Terms</a>
+        <a href="privacy.html">Privacy</a>
+        <a href="delivery-returns.html">Delivery and Returns</a>
+      </div>
+      <div class="footer-bottom">
+        <p>VELLOURA (c) 2026. Made with pride in Ghana.</p>
+      </div>
+    </div>
+  </footer>
+
+  <div class="cart-overlay" id="cart-overlay"></div>
+  <aside class="cart-drawer" id="cart-drawer" aria-label="Shopping bag">
+    <div class="cart-drawer-head">
+      <h2>Your Bag <span id="cart-count-text"></span></h2>
+      <button class="icon-btn" id="close-cart" aria-label="Close bag">X</button>
+    </div>
+    <div class="cart-drawer-body" id="cart-drawer-body"></div>
+  </aside>
+
+  <script type="module" src="js/home.js"></script>
+</body>
+</html>

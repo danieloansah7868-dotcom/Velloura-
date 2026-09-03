@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 800" width="600" height="800" role="img" aria-label="Fashion product placeholder">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f7f3ec"/>
+      <stop offset="1" stop-color="#ece7dc"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e2fbd"/>
+      <stop offset="1" stop-color="#14207f"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#d4af37"/>
+      <stop offset="0.5" stop-color="#d4af37"/>
+      <stop offset="1" stop-color="#d4af37"/>
+    </linearGradient>
+  </defs>
+  <rect width="600" height="800" fill="url(#bg)"/>
+  <circle cx="80" cy="130" r="180" fill="#ffffff" opacity="0.25"/>
+  <circle cx="540" cy="720" r="220" fill="#1e2fbd" opacity="0.06"/>
+  <path d="M0 560 C180 520 420 620 600 560 L600 800 L0 800 Z" fill="#1e2fbd" opacity="0.07"/>
+  <g transform="translate(180 180)">
+    <path d="M40 70 L80 22 L120 50 L160 22 L200 70 L206 20 L192 14 L180 34 L162 18 L158 0 L142 0 L138 18 L120 34 L102 18 L98 0 L82 0 L78 18 L60 34 L48 14 L34 20 Z" fill="url(#gold)" opacity="0.5"/>
+    <path d="M92 68 C80 70 72 82 82 96 L120 210 C120 265 102 292 82 335 C72 362 70 416 82 470 L98 520 L242 520 L258 470 C270 416 268 362 258 335 C238 292 220 265 220 210 L258 96 C268 82 260 70 248 68 Z" fill="url(#navy)"/>
+    <path d="M120 210 C120 265 102 292 82 335 C72 362 70 416 82 470 L98 520 L242 520 L258 470 C270 416 268 362 258 335 C238 292 220 265 220 210" fill="none" stroke="url(#gold)" stroke-width="2" opacity="0.55"/>
+    <path d="M92 68 C80 70 72 82 82 96 L120 210" fill="none" stroke="url(#gold)" stroke-width="2" opacity="0.4"/>
+    <path d="M248 68 C260 70 268 82 258 96 L220 210" fill="none" stroke="url(#gold)" stroke-width="2" opacity="0.4"/>
+    <path d="M120 250 Q170 285 220 250" fill="none" stroke="url(#gold)" stroke-width="2" opacity="0.5"/>
+  </g>
+</svg>
