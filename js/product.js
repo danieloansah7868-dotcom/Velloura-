@@ -92,7 +92,7 @@ function renderProduct() {
       <p><button class="btn btn-ghost" type="button" id="save-product">${isSaved(p.id) ? "Saved" : "Save for later"}</button></p>
       <div class="pdp-perks">
         <p>Nationwide delivery in Ghana</p>
-        <p>Pay with Valmont Pay — MoMo or card</p>
+        <p>Pay with MoMo or card<br><span class="muted">Valmont</span></p>
         <p>Fitting photos on request for clothing</p>
       </div>
     </div>`;

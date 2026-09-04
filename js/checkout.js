@@ -109,18 +109,18 @@ function renderCheckout() {
           <label class="radio-card selected">
             <input type="radio" name="payment" value="valmont" checked>
             <span class="radio-body">
-              <strong>Valmont Pay</strong>
-              <span>Pay with MTN MoMo, Vodafone Cash, AirtelTigo or card on valmontpay.app.</span>
+              <strong>Pay</strong>
+              <span>Valmont · MTN MoMo, Vodafone Cash, AirtelTigo or card</span>
             </span>
           </label>
         </div>
 
         <div class="notice-box">
-          After you place the order you will pay on Valmont Pay. Keep your order code. Velloura will confirm on WhatsApp once payment shows.
+          After you place the order, tap Pay. Keep your order code. Velloura will confirm on WhatsApp once payment shows.
         </div>
 
         <div id="form-error" class="error-text" hidden></div>
-        <button id="place-order" type="submit" class="btn btn-primary btn-full">Place order - ${formatGHS(total)}</button>
+        <button id="place-order" type="submit" class="btn btn-primary btn-full pay-now-btn">Pay</button>
       </form>
     </section>`;
 
@@ -138,9 +138,11 @@ function renderCheckout() {
     submitOrder(form);
   });
 
-  placeBtn.textContent = items.length
-    ? `Place order and pay - ${formatGHS(total)}`
-    : "Your bag is empty";
+  if (items.length) {
+    placeBtn.innerHTML = `<span>Pay · ${formatGHS(total)}</span><small>Valmont</small>`;
+  } else {
+    placeBtn.textContent = "Your bag is empty";
+  }
   placeBtn.disabled = items.length === 0;
 }
 
@@ -183,12 +185,15 @@ function renderSuccess(record) {
       <div class="success-card">
         <div class="success-icon">V</div>
         <h1>Order received</h1>
-        <p>Thank you, ${escapeHtml(record.customer_name)}. Pay now on Valmont Pay, then we confirm on WhatsApp.</p>
+        <p>Thank you, ${escapeHtml(record.customer_name)}. Pay now, then we confirm on WhatsApp.</p>
         <div class="code-pill">${escapeHtml(record.order_code)}</div>
         <p class="muted">Items total: ${formatGHS(record.items_total)}<br>
           Delivery: ${record.delivery_fee === 0 ? "Free" : formatGHS(record.delivery_fee)}<br>
           <strong>Total: ${formatGHS(record.total_ghs)}</strong></p>
-        <a class="btn btn-primary btn-full" href="${escapeHtml(payHref)}" target="_blank" rel="noopener">Pay now on Valmont Pay</a>
+        <a class="btn btn-primary btn-full pay-now-btn" href="${escapeHtml(payHref)}" target="_blank" rel="noopener">
+          <span>Pay</span>
+          <small>Valmont</small>
+        </a>
         <a class="btn btn-ghost btn-full" href="${waLink}" target="_blank" rel="noopener">Send order to WhatsApp</a>
         <a class="btn btn-ghost btn-full" href="track.html?code=${encodeURIComponent(record.order_code)}">Track this order</a>
       </div>

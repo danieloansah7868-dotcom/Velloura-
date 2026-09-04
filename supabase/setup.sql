@@ -47,6 +47,9 @@ create table if not exists public.orders (
   status text not null default 'new'
 );
 
+alter table public.orders add column if not exists customer_email text;
+alter table public.orders add column if not exists payment text;
+
 create table if not exists public.bookings (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),

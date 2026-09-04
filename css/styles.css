@@ -342,6 +342,18 @@ body.scrolled .site-header {
 
 .btn-full { width: 100%; }
 
+.pay-now-btn {
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.15;
+}
+.pay-now-btn small {
+  font-size: .72rem;
+  font-weight: 500;
+  letter-spacing: .04em;
+  opacity: .85;
+}
+
 .btn-chip {
   min-width: 44px;
   min-height: 44px;

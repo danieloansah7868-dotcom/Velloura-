@@ -4,7 +4,7 @@
 
 import { CONFIG, isDemoMode } from "./config.js";
 import { normalizeDigits, formatGHS, stringId } from "./utils.js";
-import { getSupabaseClient } from "./supabase.js";
+import { getSupabaseClient, waitForSupabase } from "./supabase.js";
 
 const CART_KEY = "velloura_cart_v1";
 const ORDERS_KEY = "velloura_orders_v1";
@@ -138,13 +138,31 @@ export async function placeOrder(payload) {
     return { code, record };
   }
 
+  const ready = await waitForSupabase();
+  if (!ready) throw new Error("Supabase JS library is not loaded.");
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Supabase is not connected.");
   let lastError = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const currentCode = attempt === 0 ? code : makeOrderCode();
     const currentRecord = { ...record, order_code: currentCode };
-    const { error } = await sb.from("orders").insert(currentRecord);
+    const slimRecord = {
+      order_code: currentRecord.order_code,
+      customer_name: currentRecord.customer_name,
+      phone: currentRecord.phone,
+      area: currentRecord.area,
+      neighborhood: currentRecord.neighborhood,
+      notes: currentRecord.notes,
+      items: currentRecord.items,
+      items_total: currentRecord.items_total,
+      delivery_fee: currentRecord.delivery_fee,
+      total_ghs: currentRecord.total_ghs,
+      status: currentRecord.status
+    };
+    let { error } = await sb.from("orders").insert(currentRecord);
+    if (error && /column|schema cache|PGRST204/i.test(`${error.message || ""} ${error.code || ""}`)) {
+      ({ error } = await sb.from("orders").insert(slimRecord));
+    }
     if (!error) {
       saveLocalOrder(currentRecord);
       return { code: currentCode, record: currentRecord };
@@ -231,7 +249,7 @@ export function buildOrderSummaryText(record) {
   lines.push(`Area: ${record.area}`);
   if (record.neighborhood) lines.push(`Neighborhood: ${record.neighborhood}`);
   if (record.notes) lines.push(`Note: ${record.notes}`);
-  lines.push("Payment: Valmont Pay");
+  lines.push("Payment: Valmont");
   lines.push("Please confirm my order after payment.");
   return lines.join("\n");
 }

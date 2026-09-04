@@ -4,7 +4,7 @@
 
 import { isDemoMode } from "./config.js";
 import { stringId } from "./utils.js";
-import { getSupabaseClient } from "./supabase.js";
+import { getSupabaseClient, waitForSupabase } from "./supabase.js";
 
 const LOCAL_PRODUCTS = [
   {
@@ -175,6 +175,8 @@ export function getLocalProducts() {
 
 async function loadBaseProducts() {
   if (isDemoMode) return getLocalProducts();
+  const ready = await waitForSupabase();
+  if (!ready) throw new Error("Supabase JS library is not loaded.");
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Supabase is not connected.");
   const { data, error } = await sb
@@ -182,10 +184,29 @@ async function loadBaseProducts() {
     .select("*")
     .order("sort_order", { ascending: true });
   if (error) throw error;
-  return (data || []).map(normalizeProduct);
+  return (data || []).map(normalizeProduct).filter(isClothing);
 }
 
 export async function loadProducts({ force = false } = {}) {
+  if (!force && productsCache) return productsCache.map(cloneProduct);
+
+  if (!isDemoMode) {
+    try {
+      const remote = await loadBaseProducts();
+      if (remote.length) {
+        writeStore(remote);
+        return remote.map(cloneProduct);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    const stored = readStore();
+    if (stored && stored.length) return stored.map(cloneProduct);
+    const local = getLocalProducts();
+    writeStore(local);
+    return local.map(cloneProduct);
+  }
+
   if (!force) {
     const stored = readStore();
     if (stored) return stored.map(cloneProduct);

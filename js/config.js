@@ -10,12 +10,12 @@ export const CONFIG = Object.freeze({
   whatsappNumber: "233556555317",
   phoneDisplay: "055 655 5317",
 
-  // Publishable (anon) Supabase settings. Leave BOTH empty to run in demo
-  // mode (products and orders/bookings are stored in this browser only).
-  supabaseUrl: "",
-  supabaseAnonKey: "",
+  // Publishable Supabase settings (safe in the browser). Never put a
+  // service_role or secret key here.
+  supabaseUrl: "https://tslvalxmctnjimrbbvsd.supabase.co",
+  supabaseAnonKey: "sb_publishable_d6HyDpoKRQiGiND_LH5Nxg_OMZhnK1M",
 
-  // Checkout payment. Customers pay on Valmont Pay (MoMo or card).
+  // Checkout payment. The customer sees "Pay"; Valmont is the processor.
   valmontPayUrl: "https://valmontpay.app",
 
   // Delivery

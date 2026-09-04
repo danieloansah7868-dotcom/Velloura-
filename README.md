@@ -22,25 +22,15 @@ Seller Center (demo): `login.html` — `admin@velloura.com` / `velloura`.
 
 ## Payment
 
-Checkout uses **Valmont Pay** (`https://valmontpay.app`). Customers pay with MTN MoMo, Vodafone Cash, AirtelTigo or card. After they place an order they are sent to Valmont Pay; Velloura then confirms on WhatsApp.
+Checkout shows **Pay**, with Valmont underneath. Customers pay with MTN MoMo, Vodafone Cash, AirtelTigo or card. After they place an order they tap Pay; Velloura then confirms on WhatsApp.
 
 Real charges need a merchant payment link (`pay.html?access_code=…`) from the Valmont dashboard. Do not put Valmont or Paystack secret keys in this repo. The public site only stores `CONFIG.valmontPayUrl`.
 
 ## Connecting Supabase
 
-The owner must create a Supabase project under her own email.
+Project URL and the publishable key live in `js/config.js`. Never put the **service_role** key in the website code.
 
-1. Create a project in Supabase.
-2. Open **SQL Editor** and run `supabase/setup.sql`.
-3. In **Project Settings > API**, copy the **Project URL** and the **anon / publishable key**.
-4. Open `js/config.js` and set:
-
-```js
-supabaseUrl: "https://YOUR-PROJECT.supabase.co",
-supabaseAnonKey: "YOUR-ANON-KEY",
-```
-
-Never put the **service_role** key in the website code.
+Open **SQL Editor** in the Supabase project and run `supabase/setup.sql` so the `products` and `orders` tables exist.
 
 ## WhatsApp
 

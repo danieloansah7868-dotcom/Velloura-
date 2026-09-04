@@ -93,7 +93,7 @@ LANDINGS = {
         "collection": None,
         "title": "Affordable clothes for women in Accra | VELLOURA",
         "h1": "Affordable clothes for women in Accra",
-        "description": "Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with Valmont Pay.",
+        "description": "Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with MoMo or card.",
         "keywords": "affordable clothes Accra, dress, skirt, trousers, top, tee, blouse, streetwear, modest, Ghana",
         "og_image": "assets/products/fashion-ivory-wrap-dress.jpg",
         "also": [
@@ -106,11 +106,11 @@ LANDINGS = {
         "paragraphs": [
             "VELLOURA is starting with clothes. Just affordable pieces for ordinary days in Accra: streetwear, modest sets and maxi dresses.",
             "People search for a dress, a skirt, trousers, a tee or a set. Those words are the clothes on this page. Prices are Ghana cedis and they are meant to be payable, not premium. We do not add a size we do not cut, and we do not mark a piece in stock if it is gone.",
-            "Order from your phone. Pay on Valmont Pay with MoMo or card, then we confirm on WhatsApp. Delivery is GHS 20 in Accra, GHS 30 in Kumasi and GHS 40 to other regions. Orders of GHS 500 and above ship free. Ask for a fitting photo before you confirm if you want to see how a dress or set sits.",
+            "Order from your phone. Pay with MoMo or card, then we confirm on WhatsApp. Delivery is GHS 20 in Accra, GHS 30 in Kumasi and GHS 40 to other regions. Orders of GHS 500 and above ship free. Ask for a fitting photo before you confirm if you want to see how a dress or set sits.",
         ],
         "faqs": [
             ("Do you have dresses and trousers in Accra?", "Yes. This page is the clothing we sell now — dresses, sets, trousers, skirts, tees and blouses. Open a piece to see sizes."),
-            ("How do I pay?", "Checkout sends you to Valmont Pay. You can pay with MTN MoMo, Vodafone Cash, AirtelTigo or card."),
+            ("How do I pay?", "Checkout asks you to Pay. Valmont takes MTN MoMo, Vodafone Cash, AirtelTigo or card."),
             ("What if it does not fit?", "Ask for a fitting photo on clothing before you confirm. Unworn items can be returned within 3 days."),
         ],
     },
@@ -120,7 +120,7 @@ LANDINGS = {
         "collection": "streetwear",
         "title": "Streetwear for women in Accra | VELLOURA",
         "h1": "Streetwear for women in Accra",
-        "description": "Shop a crop set, oversized tee, wide-leg trousers and a pleated skirt. Everyday streetwear from Accra. Pay with Valmont Pay.",
+        "description": "Shop a crop set, oversized tee, wide-leg trousers and a pleated skirt. Everyday streetwear from Accra. Pay with MoMo or card.",
         "keywords": "streetwear, crop, joggers, tee, trousers, skirt, casual, Accra, Ghana",
         "og_image": "assets/products/fashion-crop-set.jpg",
         "also": [
@@ -133,7 +133,7 @@ LANDINGS = {
         "paragraphs": [
             "Streetwear here is the casual clothing we keep in Accra: a two-piece crop set, an oversized tee, high-waist wide-leg trousers and a burgundy pleated midi skirt. It is everyday wear, not a runway drop.",
             "If you want a crop, joggers, a tee, trousers or a casual skirt, start on this page. Modest maxi dresses are listed separately so this grid stays honest.",
-            "Sizes are on each product. We can send a fitting photo before you confirm. Pay with Valmont Pay. Delivery is GHS 20 in Accra, GHS 30 in Kumasi, GHS 40 elsewhere, free from GHS 500.",
+            "Sizes are on each product. We can send a fitting photo before you confirm. Pay with MoMo or card. Delivery is GHS 20 in Accra, GHS 30 in Kumasi, GHS 40 elsewhere, free from GHS 500.",
             "If a crop or skirt sells out, it leaves this list. We do not keep a ghost product to look busy. Prices stay in a range you can pay — this is everyday wear, not a luxury drop.",
         ],
         "faqs": [
@@ -147,7 +147,7 @@ LANDINGS = {
         "collection": "modest",
         "title": "Modest wear in Accra | VELLOURA",
         "h1": "Modest wear in Accra",
-        "description": "Shop a satin maxi dress, a long-line modest set and an ivory wrap dress in Accra. Pay with Valmont Pay.",
+        "description": "Shop a satin maxi dress, a long-line modest set and an ivory wrap dress in Accra. Pay with MoMo or card.",
         "keywords": "modest, maxi, long dress, wrap dress, modest set, Accra, Ghana",
         "og_image": "assets/products/fashion-modest-maxi.jpg",
         "also": [
@@ -160,7 +160,7 @@ LANDINGS = {
         "paragraphs": [
             "Modest wear at VELLOURA is the longer, covered clothing we stock: a long-sleeve satin maxi, a long-line top with wide trousers, and an ivory wrap dress. These are not short street sets.",
             "If you searched for a maxi, a long dress or a modest set, the three pieces below are the current list. We do not pad this page with crop tops.",
-            "Ask for a fitting photo if you want to see length on a body before you pay. Pay with Valmont Pay. We deliver nationwide.",
+            "Ask for a fitting photo if you want to see length on a body before you pay. Pay with MoMo or card. We deliver nationwide.",
             "Returns on unworn clothing are within 3 days. Message WhatsApp first. Streetwear is listed on its own page so you are not sorting maxi dresses out of crop sets.",
         ],
         "faqs": [
@@ -189,7 +189,7 @@ def header_footer(prefix: str, active_nav: str = "shop"):
         cls = ' class="active"' if active_nav == key else ""
         return f'<a href="{prefix}{href}"{cls}>{label}</a>'
 
-    header = f'''  <div class="announce">We deliver across Ghana · Pay with Valmont Pay</div>
+    header = f'''  <div class="announce">We deliver across Ghana · Pay with MoMo or card</div>
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="{prefix}index.html">
@@ -478,7 +478,7 @@ def product_extra(product: dict) -> str:
         bits.append("This sits on the modest wear rail — longer, covered clothing, not a crop set.")
     if product.get("collection") == "streetwear":
         bits.append("This is everyday streetwear: casual clothes for ordinary days.")
-    bits.append("Pay with Valmont Pay (MoMo or card). Delivery is GHS 20 in Accra, GHS 30 in Kumasi and GHS 40 to other regions. Orders of GHS 500 and above ship free.")
+    bits.append("Pay with MoMo or card (MoMo or card). Delivery is GHS 20 in Accra, GHS 30 in Kumasi and GHS 40 to other regions. Orders of GHS 500 and above ship free.")
     return " ".join(bits)
 
 
@@ -751,7 +751,7 @@ def main():
         ROOT / "index.html",
         abs_url("index.html"),
         title="Affordable clothes for women in Accra | VELLOURA",
-        description="Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with Valmont Pay.",
+        description="Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with MoMo or card.",
         keywords="affordable clothes Accra, dress Ghana, streetwear, modest wear, VELLOURA",
         json_ld={
             "@context": "https://schema.org",
@@ -773,7 +773,7 @@ def main():
         ROOT / "shop.html",
         abs_url("shop.html"),
         title="Shop affordable clothes in Accra | VELLOURA",
-        description="Browse VELLOURA clothes in Accra — streetwear and modest wear. Pay with Valmont Pay.",
+        description="Browse VELLOURA clothes in Accra — streetwear and modest wear. Pay with MoMo or card.",
         keywords="shop Accra, clothes, dress, streetwear, modest, VELLOURA",
         json_ld={
             "@context": "https://schema.org",

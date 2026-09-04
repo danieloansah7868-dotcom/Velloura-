@@ -8,7 +8,7 @@ The public shop is **clothes only**: streetwear and modest wear at affordable Ac
 
 ## Payment
 
-Checkout is Valmont Pay only (`https://valmontpay.app`). No pay-on-delivery or WhatsApp MoMo radios. After place-order the customer gets an order code, a Pay button, and a WhatsApp confirm link. Real card/MoMo charges still need a merchant `access_code` from Valmont; this site does not store Valmont or Paystack secrets.
+Checkout shows **Pay**, with Valmont underneath (`https://valmontpay.app`). No pay-on-delivery radios. After place-order the customer gets an order code, a Pay button, and a WhatsApp confirm link. Real card/MoMo charges still need a merchant `access_code` from Valmont; this site does not store Valmont or Paystack secrets. Supabase is wired in `js/config.js`.
 
 ## How orders are saved
 
