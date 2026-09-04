@@ -109,18 +109,18 @@ function renderCheckout() {
           <label class="radio-card selected">
             <input type="radio" name="payment" value="valmont" checked>
             <span class="radio-body">
-              <strong>Pay</strong>
+              <strong>Pay now</strong>
               <span>Valmont · MTN MoMo, Vodafone Cash, AirtelTigo or card</span>
             </span>
           </label>
         </div>
 
         <div class="notice-box">
-          After you place the order, tap Pay. Keep your order code. Velloura will confirm on WhatsApp once payment shows.
+          After you place the order, tap Pay now. Keep your order code. Velloura will confirm on WhatsApp once payment shows.
         </div>
 
         <div id="form-error" class="error-text" hidden></div>
-        <button id="place-order" type="submit" class="btn btn-primary btn-full pay-now-btn">Pay</button>
+        <button id="place-order" type="submit" class="btn btn-primary btn-full pay-now-btn">Pay now</button>
       </form>
     </section>`;
 
@@ -139,7 +139,7 @@ function renderCheckout() {
   });
 
   if (items.length) {
-    placeBtn.innerHTML = `<span>Pay · ${formatGHS(total)}</span><small>Valmont</small>`;
+    placeBtn.innerHTML = `<span>Pay now · ${formatGHS(total)}</span><small>Valmont</small>`;
   } else {
     placeBtn.textContent = "Your bag is empty";
   }
@@ -191,7 +191,7 @@ function renderSuccess(record) {
           Delivery: ${record.delivery_fee === 0 ? "Free" : formatGHS(record.delivery_fee)}<br>
           <strong>Total: ${formatGHS(record.total_ghs)}</strong></p>
         <a class="btn btn-primary btn-full pay-now-btn" href="${escapeHtml(payHref)}" target="_blank" rel="noopener">
-          <span>Pay</span>
+          <span>Pay now</span>
           <small>Valmont</small>
         </a>
         <a class="btn btn-ghost btn-full" href="${waLink}" target="_blank" rel="noopener">Send order to WhatsApp</a>

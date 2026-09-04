@@ -75,7 +75,7 @@ function statusClass(status) {
 }
 
 function paymentLabel(payment) {
-  if (payment === "valmont") return "Pay · Valmont";
+  if (payment === "valmont") return "Pay now · Valmont";
   if (payment === "momo") return "Mobile Money";
   if (payment === "pay_on_delivery") return "Pay on delivery";
   return payment || "Not set";

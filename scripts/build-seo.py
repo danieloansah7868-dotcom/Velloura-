@@ -110,7 +110,7 @@ LANDINGS = {
         ],
         "faqs": [
             ("Do you have dresses and trousers in Accra?", "Yes. This page is the clothing we sell now — dresses, sets, trousers, skirts, tees and blouses. Open a piece to see sizes."),
-            ("How do I pay?", "Checkout asks you to Pay. Valmont takes MTN MoMo, Vodafone Cash, AirtelTigo or card."),
+            ("How do I pay?", "Checkout asks you to Pay now. Valmont takes MTN MoMo, Vodafone Cash, AirtelTigo or card."),
             ("What if it does not fit?", "Ask for a fitting photo on clothing before you confirm. Unworn items can be returned within 3 days."),
         ],
     },
