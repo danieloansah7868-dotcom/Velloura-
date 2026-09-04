@@ -1,17 +1,15 @@
-// Full cart page (useful on desktop and as a fallback for the drawer).
+// Full cart page, Jumia-style: items on the left, summary on the right.
 
-import { formatGHS, escapeHtml, getProductImage } from "./utils.js";
-import { CONFIG } from "./config.js";
+import { formatGHS } from "./utils.js";
 import {
   getCart,
   cartSubtotal,
   cartCount,
   updateQty,
-  removeItem,
-  deliveryFee
+  removeItem
 } from "./store.js";
-import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
-import { showDemoNotice } from "./render.js";
+import { bindCartDrawerEvents, renderCartDrawer, cartItemHTML } from "./cart-helpers.js";
+import "./account-ui.js";
 
 const body = document.getElementById("cart-view-body");
 let initialized = false;
@@ -23,52 +21,34 @@ function renderCartPage() {
 
   if (items.length === 0) {
     body.innerHTML = `
-      <h1>Your Bag</h1>
-      <div class="cart-empty">
-        <p>Your bag is empty.</p>
-        <a href="shop.html" class="btn btn-primary">Browse the shop</a>
+      <div class="cart-empty cart-empty-page">
+        <div class="cart-empty-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="56" height="56"><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" d="M6.6 8.4h10.8l-.85 11.2H7.45L6.6 8.4z"/><path fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" d="M9 8.4V6.7a3 3 0 0 1 6 0v1.7"/></svg>
+        </div>
+        <h1>Your cart is empty!</h1>
+        <p>Browse the shop and find something you like.</p>
+        <a href="shop.html" class="btn btn-primary">Start shopping</a>
       </div>`;
     return;
   }
 
-  const fee = deliveryFee(subtotal, "Accra");
-  const total = subtotal + fee;
-
   body.innerHTML = `
-    <h1>Your Bag <span class="muted">(${count})</span></h1>
-    <ul class="cart-list">
-      ${items.map((item) => `
-        <li class="cart-item">
-          <img class="cart-img" src="${escapeHtml(item.image || getProductImage({ dept: item.dept, image: item.image }))}" alt="${escapeHtml(item.name)}">
-          <div class="cart-item-info">
-            <strong class="cart-item-name">${escapeHtml(item.name)}</strong>
-            ${item.size ? `<span class="muted">Size ${escapeHtml(item.size)}</span>` : ""}
-            ${item.color ? `<span class="muted">${escapeHtml(item.color)}</span>` : ""}
-            <span class="cart-item-price">${formatGHS(item.price_ghs)}</span>
-            <div class="qty-row">
-              <button class="btn-chip" data-cart-dec="${escapeHtml(item.key)}" aria-label="Reduce quantity">-</button>
-              <span class="qty-value">${item.qty}</span>
-              <button class="btn-chip" data-cart-add="${escapeHtml(item.key)}" aria-label="Increase quantity">+</button>
-            </div>
-          </div>
-          <button class="link-muted" data-cart-remove="${escapeHtml(item.key)}" aria-label="Remove ${escapeHtml(item.name)}">Remove</button>
-        </li>`).join("")}
-    </ul>
-    <div class="cart-summary">
-      <div class="summary-row"><span>Subtotal</span><span>${formatGHS(subtotal)}</span></div>
-      <div class="summary-row"><span>Delivery (Accra)</span><span>${fee === 0 ? "Free" : formatGHS(fee)}</span></div>
-      ${subtotal < CONFIG.freeDeliveryThreshold
-        ? `<p class="mini-note">Spend ${formatGHS(CONFIG.freeDeliveryThreshold - subtotal)} more for free delivery.</p>`
-        : `<p class="mini-note success-note">Free delivery unlocked.</p>`}
-      <div class="summary-row total"><span>Total</span><span>${formatGHS(total)}</span></div>
-    </div>
-    <a href="checkout.html" class="btn btn-primary btn-full">Proceed to checkout</a>`;
+    <h1 class="cart-page-title">Cart <span class="muted">(${count})</span></h1>
+    <div class="cart-layout">
+      <ul class="cart-list cart-list-page">${items.map(cartItemHTML).join("")}</ul>
+      <aside class="cart-summary cart-summary-card">
+        <h3>Cart summary</h3>
+        <div class="summary-row"><span>Subtotal</span><span>${formatGHS(subtotal)}</span></div>
+        <div class="summary-row"><span>Delivery</span><span>At checkout</span></div>
+        <div class="summary-row total"><span>Total</span><span>${formatGHS(subtotal)}</span></div>
+        <a href="checkout.html" class="btn btn-primary btn-full">Checkout (${formatGHS(subtotal)})</a>
+      </aside>
+    </div>`;
 }
 
 function init() {
   renderCartDrawer();
   bindCartDrawerEvents();
-  showDemoNotice();
   renderCartPage();
 
   if (initialized) return;
@@ -81,16 +61,16 @@ function init() {
     if (dec) {
       const item = getCart().find((i) => i.key === dec.getAttribute("data-cart-dec"));
       if (item) updateQty(item.key, item.qty - 1);
-      renderCartPage({ force: true });
+      renderCartPage();
     }
     if (add) {
       const item = getCart().find((i) => i.key === add.getAttribute("data-cart-add"));
       if (item) updateQty(item.key, item.qty + 1);
-      renderCartPage({ force: true });
+      renderCartPage();
     }
     if (remove) {
       removeItem(remove.getAttribute("data-cart-remove"));
-      renderCartPage({ force: true });
+      renderCartPage();
     }
   });
 

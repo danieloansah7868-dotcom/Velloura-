@@ -1,6 +1,15 @@
 -- VELLOURA Supabase setup
 -- Run this file in YOUR Supabase project's SQL Editor (in the client's own account).
 -- This creates the tables, public read/insert policies and placeholder products.
+--
+-- Customer login (email + Google):
+-- 1. Authentication → Providers → Email: on. You can turn off "Confirm email" so shoppers can log in at once.
+-- 2. Authentication → Providers → Google: on. Paste a Google Cloud OAuth Client ID and Secret.
+-- 3. In Google Cloud, authorized redirect URI:
+--    https://tslvalxmctnjimrbbvsd.supabase.co/auth/v1/callback
+-- 4. Authentication → URL Configuration:
+--    Site URL = https://vellouragh.com
+--    Redirect URLs = https://vellouragh.com/**  and your preview origin /**
 
 -- ---------------------------------------------------------------
 -- Tables
@@ -47,6 +56,9 @@ create table if not exists public.orders (
   status text not null default 'new'
 );
 
+alter table public.orders add column if not exists customer_email text;
+alter table public.orders add column if not exists payment text;
+
 create table if not exists public.bookings (
   id bigint generated always as identity primary key,
   created_at timestamptz not null default now(),
@@ -78,6 +90,23 @@ create policy "public can place orders" on public.orders
     char_length(customer_name) between 2 and 120 and
     char_length(phone) between 7 and 40
   );
+
+create or replace function public.track_order(p_code text, p_phone text)
+returns setof public.orders
+language sql
+security definer
+set search_path = public
+as $$
+  select *
+  from public.orders
+  where upper(order_code) = upper(trim(p_code))
+    and regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g')
+      = regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g')
+  limit 1;
+$$;
+
+revoke all on function public.track_order(text, text) from public;
+grant execute on function public.track_order(text, text) to anon, authenticated;
 
 alter table public.bookings enable row level security;
 drop policy if exists "public can book hair" on public.bookings;

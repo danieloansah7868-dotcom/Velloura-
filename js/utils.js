@@ -34,6 +34,25 @@ export function getQueryParam(name) {
   return params.get(name) || "";
 }
 
+export function isProductSubdir() {
+  return /\/p\/[^/]+\.html$/.test(window.location.pathname);
+}
+
+export function rootHref(path) {
+  const value = String(path || "");
+  if (!value) return value;
+  if (/^(https?:)?\/\//i.test(value) || value.startsWith("data:") || value.startsWith("../") || value.startsWith("/")) {
+    return value;
+  }
+  return isProductSubdir() ? `../${value}` : value;
+}
+
+export function productPageHref(product) {
+  if (product && product.slug) return rootHref(`p/${encodeURIComponent(product.slug)}.html`);
+  if (product && product.id != null) return rootHref(`product.html?id=${encodeURIComponent(product.id)}`);
+  return rootHref("shop.html");
+}
+
 export function stringId(value) {
   return String(value == null ? "" : value);
 }
@@ -42,14 +61,15 @@ export function getProductImage(product) {
   const image = product.image ? String(product.image) : "";
   if (
     image &&
-    (/^(https?:)?\/\//i.test(image) || /\.(svg|png|jpe?g|webp|avif)(\?.*)?$/i.test(image))
+    (
+      /^data:image\//i.test(image) ||
+      /^(https?:)?\/\//i.test(image) ||
+      /\.(svg|png|jpe?g|webp|avif)(\?.*)?$/i.test(image)
+    )
   ) {
-    return image;
+    return rootHref(image);
   }
-  const dept = product && product.dept ? product.dept : "fashion";
-  if (dept === "jewelry") return "assets/placeholder-jewelry.svg";
-  if (dept === "hair") return "assets/placeholder-hair.svg";
-  return "assets/placeholder-fashion.svg";
+  return rootHref("assets/placeholder-fashion.svg");
 }
 
 export function getDaysAhead(count) {
@@ -72,8 +92,49 @@ export function buildWhatsAppLink(number, message) {
   return `https://wa.me/${clean}?text=${encodeURIComponent(message)}`;
 }
 
+export function firstName(fullName) {
+  return String(fullName || "").trim().split(/\s+/)[0] || "";
+}
+
+export function timeGreeting(name) {
+  let hour = new Date().getHours();
+  try {
+    hour = Number(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Accra",
+        hour: "numeric",
+        hourCycle: "h23"
+      }).format(new Date())
+    );
+  } catch (err) {
+    /* local clock */
+  }
+  let hello = "Hello";
+  if (hour >= 5 && hour < 12) hello = "Good morning";
+  else if (hour >= 12 && hour < 17) hello = "Good afternoon";
+  else hello = "Good evening";
+  const who = firstName(name);
+  return who ? `${hello} ${who}` : hello;
+}
+
+export function orderStatusLabel(status) {
+  const map = {
+    new: "Pending",
+    confirmed: "Confirmed",
+    packed: "Packed",
+    delivered: "Delivered",
+    cancelled: "Cancelled"
+  };
+  return map[status] || status || "Pending";
+}
+
 export function getConfigNotice() {
-  return isDemoMode
-    ? "Demo mode: connect Supabase in js/config.js to save real orders and bookings."
-    : "";
+  return "";
+}
+
+export function discountPercent(product) {
+  const price = Number(product?.price_ghs || 0);
+  const was = Number(product?.compare_at_ghs || 0);
+  if (!(was > price) || !(price > 0)) return 0;
+  return Math.round(((was - price) / was) * 100);
 }

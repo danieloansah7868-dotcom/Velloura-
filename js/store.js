@@ -3,8 +3,9 @@
 // - Supabase mode: anonymous inserts into public.orders and public.bookings.
 
 import { CONFIG, isDemoMode } from "./config.js";
-import { normalizeDigits, formatGHS, stringId } from "./utils.js";
-import { getSupabaseClient } from "./supabase.js";
+import { normalizeDigits, stringId, timeGreeting, orderStatusLabel } from "./utils.js";
+import { getSupabaseClient, waitForSupabase } from "./supabase.js";
+import { areaDeliveryFee, areaDeliveryDays, getDeliveryArea } from "./delivery.js";
 
 const CART_KEY = "velloura_cart_v1";
 const ORDERS_KEY = "velloura_orders_v1";
@@ -95,10 +96,15 @@ export function cartSubtotal() {
 }
 
 export function deliveryFee(subtotal, area) {
-  if (subtotal >= CONFIG.freeDeliveryThreshold) return 0;
-  if (area === "Kumasi") return CONFIG.deliveryFees.Kumasi;
-  if (area === "Other") return CONFIG.deliveryFees.Other;
-  return CONFIG.deliveryFees.Accra;
+  return areaDeliveryFee(area, subtotal, CONFIG.freeDeliveryThreshold);
+}
+
+export function deliveryDays(area) {
+  return areaDeliveryDays(area);
+}
+
+export function isDeliverableArea(area) {
+  return Boolean(getDeliveryArea(area));
 }
 
 function makeOrderCode() {
@@ -122,28 +128,106 @@ export async function placeOrder(payload) {
     items_total: payload.items_total,
     delivery_fee: payload.delivery_fee,
     total_ghs: payload.total_ghs,
-    status: "new"
+    status: "new",
+    customer_email: payload.customer_email || "",
+    payment: payload.payment || ""
   };
 
-  if (isDemoMode) {
+  function saveLocalOrder(currentRecord) {
     const orders = readJson(ORDERS_KEY, []);
-    orders.push({ ...record, created_at: new Date().toISOString() });
+    orders.push({ ...currentRecord, created_at: currentRecord.created_at || new Date().toISOString() });
     writeJson(ORDERS_KEY, orders);
+  }
+
+  if (isDemoMode) {
+    saveLocalOrder(record);
     return { code, record };
   }
 
+  const ready = await waitForSupabase();
+  if (!ready) throw new Error("Supabase JS library is not loaded.");
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Supabase is not connected.");
   let lastError = null;
   for (let attempt = 0; attempt < 3; attempt += 1) {
     const currentCode = attempt === 0 ? code : makeOrderCode();
     const currentRecord = { ...record, order_code: currentCode };
-    const { error } = await sb.from("orders").insert(currentRecord);
-    if (!error) return { code: currentCode, record: currentRecord };
+    const slimRecord = {
+      order_code: currentRecord.order_code,
+      customer_name: currentRecord.customer_name,
+      phone: currentRecord.phone,
+      area: currentRecord.area,
+      neighborhood: currentRecord.neighborhood,
+      notes: currentRecord.notes,
+      items: currentRecord.items,
+      items_total: currentRecord.items_total,
+      delivery_fee: currentRecord.delivery_fee,
+      total_ghs: currentRecord.total_ghs,
+      status: currentRecord.status
+    };
+    let { error } = await sb.from("orders").insert(currentRecord);
+    if (error && /column|schema cache|PGRST204/i.test(`${error.message || ""} ${error.code || ""}`)) {
+      ({ error } = await sb.from("orders").insert(slimRecord));
+    }
+    if (!error) {
+      saveLocalOrder(currentRecord);
+      return { code: currentCode, record: currentRecord };
+    }
     lastError = error;
     if (!/unique|duplicate|23505/i.test(`${error.message || ""} ${error.code || ""}`)) break;
   }
   throw lastError || new Error("Could not save the order.");
+}
+
+export function listOrders() {
+  const orders = readJson(ORDERS_KEY, []);
+  return Array.isArray(orders)
+    ? orders.slice().sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+    : [];
+}
+
+export function findOrder(code, phone) {
+  const wanted = String(code || "").trim().toUpperCase();
+  const digits = normalizeDigits(phone);
+  if (!digits) return null;
+  const matches = listOrders().filter((order) => normalizeDigits(order.phone) === digits);
+  if (wanted) {
+    return matches.find((order) => String(order.order_code || "").toUpperCase() === wanted) || null;
+  }
+  return matches[0] || null;
+}
+
+export async function findOrderRemote(code, phone) {
+  const local = findOrder(code, phone);
+  if (local) return local;
+  if (isDemoMode) return null;
+  try {
+    const ready = await waitForSupabase();
+    if (!ready) return null;
+    const sb = getSupabaseClient();
+    if (!sb) return null;
+    const { data, error } = await sb.rpc("track_order", {
+      p_code: String(code || "").trim(),
+      p_phone: normalizeDigits(phone)
+    });
+    if (error) {
+      console.error(error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row || null;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
+export function updateOrderStatus(code, status) {
+  const orders = readJson(ORDERS_KEY, []);
+  const order = orders.find((o) => o.order_code === code);
+  if (order) order.status = status;
+  writeJson(ORDERS_KEY, orders);
+  return order;
 }
 
 export async function placeBooking(payload) {
@@ -180,25 +264,11 @@ export async function placeBooking(payload) {
 }
 
 export function buildOrderSummaryText(record) {
-  const lines = ["Hi Velloura, I just placed an order.", `Order code: ${record.order_code}`];
-  lines.push("Items:");
-  record.items.forEach((item, index) => {
-    const sizeText = item.size ? ` / ${item.size}` : "";
-    const colorText = item.color ? ` / ${item.color}` : "";
-    lines.push(
-      `${index + 1}. ${item.name}${sizeText}${colorText} x ${item.qty} - ${formatGHS(item.price_ghs * item.qty)}`
-    );
-  });
-  lines.push(`Items total: ${formatGHS(record.items_total)}`);
-  lines.push(`Delivery fee: ${formatGHS(record.delivery_fee)}`);
-  lines.push(`Total: ${formatGHS(record.total_ghs)}`);
-  lines.push(`Customer: ${record.customer_name}`);
-  lines.push(`Phone: ${record.phone}`);
-  lines.push(`Area: ${record.area}`);
-  if (record.neighborhood) lines.push(`Neighborhood: ${record.neighborhood}`);
-  if (record.notes) lines.push(`Note: ${record.notes}`);
-  lines.push("Please confirm my order.");
-  return lines.join("\n");
+  return [
+    `${timeGreeting()},`,
+    `Order number: ${record.order_code}`,
+    `Status: ${orderStatusLabel(record.status)}.`
+  ].join("\n");
 }
 
 export function buildBookingSummaryText(record) {
