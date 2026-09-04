@@ -80,7 +80,7 @@ function renderCheckout() {
           <div class="field">
             <label for="phone">Phone number</label>
             <input id="phone" name="phone" type="tel" inputmode="tel" placeholder="0XX XXX XXXX" autocomplete="tel" value="${escapeHtml(prev.phone || "")}" required>
-            <span class="hint">We will use this for the delivery person.</span>
+            <span class="hint">The rider will call this number.</span>
           </div>
           <div class="field">
             <label for="email">Email <span class="hint">(optional)</span></label>
@@ -89,10 +89,11 @@ function renderCheckout() {
           <div class="field">
             <label for="area">Area</label>
             <select id="area" name="area" required>
-              <option value="Accra" ${prev.area === "Accra" || (!prev.area && selectedArea === "Accra") ? "selected" : ""}>Accra</option>
-              <option value="Kumasi" ${prev.area === "Kumasi" || (!prev.area && selectedArea === "Kumasi") ? "selected" : ""}>Kumasi</option>
-              <option value="Other" ${prev.area === "Other" || (!prev.area && selectedArea === "Other") ? "selected" : ""}>Other region</option>
+              <option value="Accra" ${prev.area === "Accra" || (!prev.area && selectedArea === "Accra") ? "selected" : ""}>Accra — GHS 20 · 1–2 days</option>
+              <option value="Kumasi" ${prev.area === "Kumasi" || (!prev.area && selectedArea === "Kumasi") ? "selected" : ""}>Kumasi — GHS 30 · 2–3 days</option>
+              <option value="Other" ${prev.area === "Other" || (!prev.area && selectedArea === "Other") ? "selected" : ""}>Other region — GHS 40 · 3–5 days</option>
             </select>
+            <span class="hint">Free delivery from GHS 500. We WhatsApp you to arrange drop-off after you pay.</span>
           </div>
           <div class="field">
             <label for="neighborhood">Neighborhood</label>
@@ -116,7 +117,7 @@ function renderCheckout() {
         </div>
 
         <div class="notice-box">
-          After you place the order, tap Pay now. Keep your order code. Velloura will confirm on WhatsApp once payment shows.
+          Tap Pay now to pay. Keep your order code to track. We WhatsApp you to arrange delivery after payment.
         </div>
 
         <div id="form-error" class="error-text" hidden></div>
@@ -185,7 +186,7 @@ function renderSuccess(record) {
       <div class="success-card">
         <div class="success-icon">V</div>
         <h1>Order received</h1>
-        <p>Thank you, ${escapeHtml(record.customer_name)}. Pay now, then we confirm on WhatsApp.</p>
+        <p>Thank you, ${escapeHtml(record.customer_name)}. Pay now, then we WhatsApp you to arrange delivery.</p>
         <div class="code-pill">${escapeHtml(record.order_code)}</div>
         <p class="muted">Items total: ${formatGHS(record.items_total)}<br>
           Delivery: ${record.delivery_fee === 0 ? "Free" : formatGHS(record.delivery_fee)}<br>

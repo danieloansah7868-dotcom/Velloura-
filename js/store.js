@@ -190,6 +190,31 @@ export function findOrder(code, phone) {
   )) || null;
 }
 
+export async function findOrderRemote(code, phone) {
+  const local = findOrder(code, phone);
+  if (local) return local;
+  if (isDemoMode) return null;
+  try {
+    const ready = await waitForSupabase();
+    if (!ready) return null;
+    const sb = getSupabaseClient();
+    if (!sb) return null;
+    const { data, error } = await sb.rpc("track_order", {
+      p_code: String(code || "").trim(),
+      p_phone: normalizeDigits(phone)
+    });
+    if (error) {
+      console.error(error);
+      return null;
+    }
+    const row = Array.isArray(data) ? data[0] : data;
+    return row || null;
+  } catch (err) {
+    console.error(err);
+    return null;
+  }
+}
+
 export function updateOrderStatus(code, status) {
   const orders = readJson(ORDERS_KEY, []);
   const order = orders.find((o) => o.order_code === code);

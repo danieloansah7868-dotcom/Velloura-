@@ -1,4 +1,4 @@
-import { findOrder } from "./store.js";
+import { findOrderRemote } from "./store.js";
 import { formatGHS, escapeHtml, getQueryParam } from "./utils.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
 import "./account-ui.js";
@@ -56,11 +56,21 @@ function renderOrder(order) {
     </article>`;
 }
 
-form?.addEventListener("submit", (event) => {
+form?.addEventListener("submit", async (event) => {
   event.preventDefault();
   const code = form.elements.namedItem("code")?.value || "";
   const phone = form.elements.namedItem("phone")?.value || "";
-  const order = findOrder(code, phone);
+  errorEl.hidden = true;
+  const submitBtn = form.querySelector("button[type=submit]");
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Checking...";
+  }
+  const order = await findOrderRemote(code, phone);
+  if (submitBtn) {
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Track";
+  }
   if (!order) {
     errorEl.hidden = false;
     errorEl.textContent = "No order matches that code and phone number.";
@@ -68,7 +78,6 @@ form?.addEventListener("submit", (event) => {
     result.innerHTML = "";
     return;
   }
-  errorEl.hidden = true;
   renderOrder(order);
 });
 

@@ -82,6 +82,23 @@ create policy "public can place orders" on public.orders
     char_length(phone) between 7 and 40
   );
 
+create or replace function public.track_order(p_code text, p_phone text)
+returns setof public.orders
+language sql
+security definer
+set search_path = public
+as $$
+  select *
+  from public.orders
+  where upper(order_code) = upper(trim(p_code))
+    and regexp_replace(coalesce(phone, ''), '[^0-9]', '', 'g')
+      = regexp_replace(coalesce(p_phone, ''), '[^0-9]', '', 'g')
+  limit 1;
+$$;
+
+revoke all on function public.track_order(text, text) from public;
+grant execute on function public.track_order(text, text) to anon, authenticated;
+
 alter table public.bookings enable row level security;
 drop policy if exists "public can book hair" on public.bookings;
 create policy "public can book hair" on public.bookings
