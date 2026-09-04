@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /login.html
+Disallow: /account.html
+Disallow: /account-login.html
+Disallow: /checkout.html
+Disallow: /cart-view.html
+Disallow: /wishlist.html
+Disallow: /track.html
+Disallow: /product.html
+Disallow: /jewelry.html
+Disallow: /hair.html
+Disallow: /wigs.html
+Disallow: /thrift.html
+
+Sitemap: https://vellouragh.com/sitemap.xml

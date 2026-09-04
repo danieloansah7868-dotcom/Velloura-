@@ -19,6 +19,8 @@ import {
 } from "./store.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
 import { showDemoNotice, showNotice, hideNotice } from "./render.js";
+import { currentCustomer } from "./customers.js";
+import "./account-ui.js";
 
 const content = document.getElementById("checkout-content");
 let selectedArea = "Accra";
@@ -38,21 +40,26 @@ function renderCheckout() {
   const total = subtotal + fee;
 
   const existingForm = document.getElementById("checkout-form");
+  const customer = currentCustomer();
   const prev = {};
   if (existingForm) {
-    ["customer_name", "phone", "area", "neighborhood", "notes"].forEach((name) => {
+    ["customer_name", "phone", "email", "area", "neighborhood", "notes"].forEach((name) => {
       const el = existingForm.elements.namedItem(name);
       if (el) prev[name] = el.value;
     });
     const checked = existingForm.querySelector("input[name=payment]:checked");
     if (checked) prev.payment = checked.value;
+  } else if (customer) {
+    prev.customer_name = customer.name;
+    prev.phone = customer.phone;
+    prev.email = customer.email || "";
   }
 
   content.innerHTML = `
     <section class="section">
-      <div class="section-head">
+      <div class="page-intro">
         <h1>Checkout</h1>
-        <a href="cart-view.html">Back to bag</a>
+        <p><a href="cart-view.html">Back to bag</a></p>
       </div>
 
       <div class="form-card">
@@ -63,6 +70,7 @@ function renderCheckout() {
       </div>
 
       <form id="checkout-form" novalidate>
+        ${customer ? "" : `<p class="muted">Have an account? <a href="account-login.html?next=checkout.html">Log in</a> to fill your details.</p>`}
         <div class="form-card">
           <h2>Delivery details</h2>
           <div class="field">
@@ -73,6 +81,10 @@ function renderCheckout() {
             <label for="phone">Phone number</label>
             <input id="phone" name="phone" type="tel" inputmode="tel" placeholder="0XX XXX XXXX" autocomplete="tel" value="${escapeHtml(prev.phone || "")}" required>
             <span class="hint">We will use this for the delivery person.</span>
+          </div>
+          <div class="field">
+            <label for="email">Email <span class="hint">(optional)</span></label>
+            <input id="email" name="email" type="email" autocomplete="email" value="${escapeHtml(prev.email || "")}">
           </div>
           <div class="field">
             <label for="area">Area</label>
@@ -93,25 +105,18 @@ function renderCheckout() {
         </div>
 
         <div class="form-card">
-          <h2>Payment method</h2>
-          <label class="radio-card">
-            <input type="radio" name="payment" value="pay_on_delivery" ${prev.payment !== "momo" ? "checked" : ""}>
+          <h2>Payment</h2>
+          <label class="radio-card selected">
+            <input type="radio" name="payment" value="valmont" checked>
             <span class="radio-body">
-              <strong>Pay on delivery (Accra only)</strong>
-              <span>Pay the delivery person when your order arrives.</span>
-            </span>
-          </label>
-          <label class="radio-card">
-            <input type="radio" name="payment" value="momo" ${prev.payment === "momo" ? "checked" : ""}>
-            <span class="radio-body">
-              <strong>Mobile Money transfer</strong>
-              <span>Velloura confirms on WhatsApp and sends the MoMo details.</span>
+              <strong>Valmont Pay</strong>
+              <span>Pay with MTN MoMo, Vodafone Cash, AirtelTigo or card on valmontpay.app.</span>
             </span>
           </label>
         </div>
 
         <div class="notice-box">
-          <strong>How it works:</strong> Velloura confirms every order on WhatsApp. For Mobile Money, you receive the MoMo number on confirmation and pay before delivery. No fake card payment here.
+          After you place the order you will pay on Valmont Pay. Keep your order code. Velloura will confirm on WhatsApp once payment shows.
         </div>
 
         <div id="form-error" class="error-text" hidden></div>
@@ -134,7 +139,7 @@ function renderCheckout() {
   });
 
   placeBtn.textContent = items.length
-    ? `Place order - ${formatGHS(total)}`
+    ? `Place order and pay - ${formatGHS(total)}`
     : "Your bag is empty";
   placeBtn.disabled = items.length === 0;
 }
@@ -148,41 +153,50 @@ function validateForm(form) {
   const name = getFieldValue(form, "customer_name").trim();
   const phone = getFieldValue(form, "phone").trim().replace(/[^0-9]/g, "");
   const area = getFieldValue(form, "area");
-  const payment = form.querySelector("input[name=payment]:checked")?.value;
   const errors = [];
 
   if (name.length < 2) errors.push("Please enter your full name.");
   if (!isValidGhanaPhone(phone)) errors.push("Please enter a Ghana phone number like 024 123 4567.");
   if (!area) errors.push("Please choose your delivery area.");
-  if (payment === "pay_on_delivery" && area !== "Accra") {
-    errors.push("Pay on delivery is available in Accra only. Please choose Mobile Money.");
-  }
   return errors;
+}
+
+function valmontPayHref(record) {
+  const base = CONFIG.valmontPayUrl || "https://valmontpay.app";
+  const url = new URL(base);
+  url.searchParams.set("ref", record.order_code || "");
+  url.searchParams.set("amount", String(record.total_ghs || ""));
+  url.searchParams.set("currency", "GHS");
+  if (record.customer_name) url.searchParams.set("name", record.customer_name);
+  if (record.phone) url.searchParams.set("phone", record.phone);
+  if (record.customer_email) url.searchParams.set("email", record.customer_email);
+  return url.toString();
 }
 
 function renderSuccess(record) {
   const waMessage = buildOrderSummaryText(record);
   const waLink = buildWhatsAppLink(CONFIG.whatsappNumber, waMessage);
+  const payHref = valmontPayHref(record);
 
   content.innerHTML = `
     <section class="section">
       <div class="success-card">
         <div class="success-icon">V</div>
         <h1>Order received</h1>
-        <p>Thank you, ${escapeHtml(record.customer_name)}. Velloura will confirm your order on WhatsApp.</p>
+        <p>Thank you, ${escapeHtml(record.customer_name)}. Pay now on Valmont Pay, then we confirm on WhatsApp.</p>
         <div class="code-pill">${escapeHtml(record.order_code)}</div>
         <p class="muted">Items total: ${formatGHS(record.items_total)}<br>
           Delivery: ${record.delivery_fee === 0 ? "Free" : formatGHS(record.delivery_fee)}<br>
           <strong>Total: ${formatGHS(record.total_ghs)}</strong></p>
-        <a class="btn btn-primary btn-full" href="${waLink}" target="_blank" rel="noopener">Send order to WhatsApp</a>
-      </div>
-      <div class="notice-box">
-        <strong>Crown perk:</strong> order jewelry today and get 10 percent off your next hair or wig purchase.
+        <a class="btn btn-primary btn-full" href="${escapeHtml(payHref)}" target="_blank" rel="noopener">Pay now on Valmont Pay</a>
+        <a class="btn btn-ghost btn-full" href="${waLink}" target="_blank" rel="noopener">Send order to WhatsApp</a>
+        <a class="btn btn-ghost btn-full" href="track.html?code=${encodeURIComponent(record.order_code)}">Track this order</a>
       </div>
       <div class="flex-center mt-24">
         <a class="btn btn-ghost" href="shop.html">Continue shopping</a>
       </div>
     </section>`;
+  window.open(payHref, "_blank", "noopener");
 }
 
 async function submitOrder(form) {
@@ -218,6 +232,8 @@ async function submitOrder(form) {
     area,
     neighborhood: getFieldValue(form, "neighborhood").trim(),
     notes: getFieldValue(form, "notes").trim(),
+    customer_email: getFieldValue(form, "email").trim() || currentCustomer()?.email || "",
+    payment: "valmont",
     items,
     items_total: subtotal,
     delivery_fee: fee,

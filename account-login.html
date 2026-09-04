@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Login — VELLOURA</title>
+  <meta name="description" content="Log in or create a VELLOURA customer account.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="auth-body">
+  <main class="auth-wrap">
+    <a class="auth-logo" href="index.html">
+      <img src="assets/logo.png" alt="VELLOURA" width="56" height="56">
+    </a>
+
+    <section class="auth-card" id="login-panel">
+      <h1>Login</h1>
+      <p class="muted">Welcome back. Log in to see your orders.</p>
+      <form id="customer-login-form" novalidate>
+        <div class="field">
+          <label for="login-email">Email</label>
+          <input id="login-email" name="email" type="email" autocomplete="username" required>
+        </div>
+        <div class="field">
+          <label for="login-password">Password</label>
+          <input id="login-password" name="password" type="password" autocomplete="current-password" required>
+        </div>
+        <p id="login-error" class="error-text" hidden></p>
+        <button class="btn btn-primary btn-full" type="submit">Log in</button>
+      </form>
+      <p class="auth-hint">New here? <a href="#" data-show-panel="register">Create an account</a></p>
+      <a class="auth-back" href="index.html">← Back to shop</a>
+    </section>
+
+    <section class="auth-card" id="register-panel" hidden>
+      <h1>Create account</h1>
+      <p class="muted">Shop faster next time and track your orders.</p>
+      <form id="customer-register-form" novalidate>
+        <div class="field">
+          <label for="reg-name">Full name</label>
+          <input id="reg-name" name="name" type="text" autocomplete="name" required>
+        </div>
+        <div class="field">
+          <label for="reg-email">Email</label>
+          <input id="reg-email" name="email" type="email" autocomplete="email" required>
+        </div>
+        <div class="field">
+          <label for="reg-phone">Phone</label>
+          <input id="reg-phone" name="phone" type="tel" placeholder="0XX XXX XXXX" autocomplete="tel" required>
+        </div>
+        <div class="field">
+          <label for="reg-password">Password</label>
+          <input id="reg-password" name="password" type="password" autocomplete="new-password" required>
+        </div>
+        <p id="register-error" class="error-text" hidden></p>
+        <button class="btn btn-primary btn-full" type="submit">Create account</button>
+      </form>
+      <p class="auth-hint">Already have an account? <a href="#" data-show-panel="login">Log in</a></p>
+      <a class="auth-back" href="index.html">← Back to shop</a>
+    </section>
+  </main>
+  <script type="module" src="js/account-login.js"></script>
+</body>
+</html>

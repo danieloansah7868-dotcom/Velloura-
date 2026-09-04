@@ -122,13 +122,19 @@ export async function placeOrder(payload) {
     items_total: payload.items_total,
     delivery_fee: payload.delivery_fee,
     total_ghs: payload.total_ghs,
-    status: "new"
+    status: "new",
+    customer_email: payload.customer_email || "",
+    payment: payload.payment || ""
   };
 
-  if (isDemoMode) {
+  function saveLocalOrder(currentRecord) {
     const orders = readJson(ORDERS_KEY, []);
-    orders.push({ ...record, created_at: new Date().toISOString() });
+    orders.push({ ...currentRecord, created_at: currentRecord.created_at || new Date().toISOString() });
     writeJson(ORDERS_KEY, orders);
+  }
+
+  if (isDemoMode) {
+    saveLocalOrder(record);
     return { code, record };
   }
 
@@ -139,11 +145,39 @@ export async function placeOrder(payload) {
     const currentCode = attempt === 0 ? code : makeOrderCode();
     const currentRecord = { ...record, order_code: currentCode };
     const { error } = await sb.from("orders").insert(currentRecord);
-    if (!error) return { code: currentCode, record: currentRecord };
+    if (!error) {
+      saveLocalOrder(currentRecord);
+      return { code: currentCode, record: currentRecord };
+    }
     lastError = error;
     if (!/unique|duplicate|23505/i.test(`${error.message || ""} ${error.code || ""}`)) break;
   }
   throw lastError || new Error("Could not save the order.");
+}
+
+export function listOrders() {
+  const orders = readJson(ORDERS_KEY, []);
+  return Array.isArray(orders)
+    ? orders.slice().sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
+    : [];
+}
+
+export function findOrder(code, phone) {
+  const wanted = String(code || "").trim().toUpperCase();
+  const digits = normalizeDigits(phone);
+  if (!wanted || !digits) return null;
+  return listOrders().find((order) => (
+    String(order.order_code || "").toUpperCase() === wanted &&
+    normalizeDigits(order.phone) === digits
+  )) || null;
+}
+
+export function updateOrderStatus(code, status) {
+  const orders = readJson(ORDERS_KEY, []);
+  const order = orders.find((o) => o.order_code === code);
+  if (order) order.status = status;
+  writeJson(ORDERS_KEY, orders);
+  return order;
 }
 
 export async function placeBooking(payload) {
@@ -197,7 +231,8 @@ export function buildOrderSummaryText(record) {
   lines.push(`Area: ${record.area}`);
   if (record.neighborhood) lines.push(`Neighborhood: ${record.neighborhood}`);
   if (record.notes) lines.push(`Note: ${record.notes}`);
-  lines.push("Please confirm my order.");
+  lines.push("Payment: Valmont Pay");
+  lines.push("Please confirm my order after payment.");
   return lines.join("\n");
 }
 

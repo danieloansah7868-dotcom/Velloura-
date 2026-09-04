@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Seller Center — VELLOURA</title>
+  <meta name="description" content="VELLOURA seller dashboard for orders and products.">
+  <link rel="icon" type="image/png" href="assets/favicon.png">
+  <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="admin-body">
+  <aside class="admin-side">
+    <a class="admin-brand" href="admin.html">
+      <img src="assets/logo.png" alt="" width="36" height="36">
+      <span>Seller Center</span>
+    </a>
+    <nav class="admin-nav">
+      <a href="#home" data-tab="home" class="active">Dashboard</a>
+      <a href="#orders" data-tab="orders">Orders</a>
+      <a href="#products" data-tab="products">Products</a>
+      <a href="#customers" data-tab="customers">Customers</a>
+      <a href="index.html">View shop</a>
+    </nav>
+  </aside>
+  <div class="admin-shell">
+    <header class="admin-top">
+      <h1 id="admin-title">Dashboard</h1>
+      <div class="admin-top-actions">
+        <span id="admin-email" class="muted"></span>
+        <button class="btn btn-ghost" type="button" id="admin-logout">Logout</button>
+      </div>
+    </header>
+    <div class="admin-content">
+      <section id="admin-home"></section>
+      <section id="admin-orders" hidden></section>
+      <section id="admin-products" hidden></section>
+      <section id="admin-customers" hidden></section>
+    </div>
+  </div>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>

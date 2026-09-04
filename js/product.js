@@ -1,20 +1,34 @@
 // Product detail page. Handles size, colour, quantity and add to bag.
 
-import { getProduct } from "./catalog.js";
+import { getProduct, getProductBySlug, loadProducts, relatedProducts } from "./catalog.js";
 import { addToCart } from "./store.js";
 import { formatGHS, escapeHtml, getProductImage, getQueryParam } from "./utils.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
-import { showDemoNotice, showNotice, hideNotice } from "./render.js";
+import { showDemoNotice, showNotice, hideNotice, renderProductGrid } from "./render.js";
+import { isSaved, toggleSaved, updateWishBadge } from "./wishlist.js";
+import { addReview, listReviews, ratingSummary, starsText } from "./reviews.js";
+import { currentCustomer } from "./customers.js";
+import "./account-ui.js";
 
 let currentProduct = null;
 let selectedSize = "";
 let selectedColor = "";
 let quantity = 1;
+let selectedRating = 0;
 
 const detail = document.getElementById("product-detail");
 const stickyBar = document.getElementById("sticky-bar");
 const stickyPrice = document.getElementById("sticky-price");
 const addBtn = document.getElementById("add-to-bag-sticky");
+const relatedGrid = document.getElementById("related-grid");
+const reviewsEl = document.getElementById("reviews-wrap");
+
+function formatWhen(iso) {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return String(iso).slice(0, 10);
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
 
 function renderProduct() {
   const p = currentProduct;
@@ -22,11 +36,16 @@ function renderProduct() {
   const colors = Array.isArray(p.colors) ? p.colors : [];
   const isOneOfOne = p.badge === "1 of 1";
   const maxQty = isOneOfOne ? 1 : 99;
+  const rating = ratingSummary(p.id);
 
+  const deptLabel = p.dept ? `<span class="eyebrow">${escapeHtml(p.dept)}</span>` : "";
   const badge = p.badge ? `<span class="badge">${escapeHtml(p.badge)}</span>` : "";
   const stock = p.in_stock === false
     ? `<span class="badge in-stock">Sold out</span>`
     : `<span class="badge in-stock">In stock</span>`;
+  const ratingLine = rating.count
+    ? `<p class="review-summary"><span class="stars">${starsText(rating.average)}</span> ${rating.average} · ${rating.count} review${rating.count === 1 ? "" : "s"}</p>`
+    : "";
 
   const sizeChoices = sizes.length
     ? `<span class="choice-label">Size</span>
@@ -42,14 +61,13 @@ function renderProduct() {
        </div>`
     : "";
 
-  const jewelryNote = p.dept === "jewelry"
-    ? `<p class="muted">${escapeHtml(p.description || "Gold plated and tarnish free.")}</p>`
-    : "";
+  const jewelryNote = "";
 
   const quantityBlock = isOneOfOne
     ? `<span class="choice-label">One of one</span>
        <p class="muted">Only one piece is available.</p>`
-    : `<div class="qty-picker">
+    : `<span class="choice-label">Quantity</span>
+       <div class="qty-picker">
          <button class="btn-chip" id="qty-minus" aria-label="Reduce quantity">-</button>
          <span class="qty-value" id="qty-value">1</span>
          <button class="btn-chip" id="qty-plus" aria-label="Increase quantity">+</button>
@@ -60,15 +78,23 @@ function renderProduct() {
       <img src="${escapeHtml(getProductImage(p))}" alt="${escapeHtml(p.name)}">
     </div>
     <div class="product-info">
+      ${deptLabel}
       ${badge}
       ${stock}
       <h1>${escapeHtml(p.name)}</h1>
+      ${ratingLine}
       <p class="price-big">${formatGHS(p.price_ghs)}</p>
       <p>${escapeHtml(p.description || "A stylish piece from Velloura.")}</p>
       ${jewelryNote}
       ${sizeChoices}
       ${colorChoices}
       ${quantityBlock}
+      <p><button class="btn btn-ghost" type="button" id="save-product">${isSaved(p.id) ? "Saved" : "Save for later"}</button></p>
+      <div class="pdp-perks">
+        <p>Nationwide delivery in Ghana</p>
+        <p>Pay with Valmont Pay — MoMo or card</p>
+        <p>Fitting photos on request for clothing</p>
+      </div>
     </div>`;
 
   stickyBar.classList.remove("hidden");
@@ -113,7 +139,83 @@ function renderProduct() {
     document.querySelector("#color-choices .choice")?.classList.add("selected");
   }
 
-  addBtn.addEventListener("click", () => validateAndAdd());
+  addBtn.onclick = () => validateAndAdd();
+
+  document.getElementById("save-product")?.addEventListener("click", (event) => {
+    const now = toggleSaved(p.id);
+    event.currentTarget.textContent = now ? "Saved" : "Save for later";
+    updateWishBadge();
+  });
+}
+
+function renderReviews() {
+  if (!reviewsEl || !currentProduct) return;
+  const reviews = listReviews(currentProduct.id);
+  const customer = currentCustomer();
+  reviewsEl.innerHTML = `
+    <div class="section-head">
+      <h2>Reviews</h2>
+    </div>
+    ${reviews.length
+      ? reviews.map((review) => `
+        <article class="review-card">
+          <div class="review-head">
+            <strong>${escapeHtml(review.name)}</strong>
+            <span class="stars">${starsText(review.rating)}</span>
+          </div>
+          <p class="muted">${escapeHtml(formatWhen(review.created_at))}</p>
+          <p>${escapeHtml(review.text)}</p>
+        </article>`).join("")
+      : `<p class="muted">No reviews yet. Be the first to review this piece.</p>`}
+    <form class="form-card" id="review-form">
+      <h2>Write a review</h2>
+      <div class="field">
+        <label for="review-name">Name</label>
+        <input id="review-name" name="name" type="text" required value="${escapeHtml(customer?.name || "")}">
+      </div>
+      <div class="field">
+        <span class="choice-label">Rating</span>
+        <div class="star-picker" id="star-picker">
+          ${[1, 2, 3, 4, 5].map((n) => `<button class="star-btn" type="button" data-star="${n}" aria-label="${n} stars">★</button>`).join("")}
+        </div>
+      </div>
+      <div class="field">
+        <label for="review-text">Your review</label>
+        <textarea id="review-text" name="text" required placeholder="How was the fit, colour or quality?"></textarea>
+      </div>
+      <p id="review-error" class="error-text" hidden></p>
+      <button class="btn btn-primary" type="submit">Post review</button>
+    </form>`;
+
+  const picker = document.getElementById("star-picker");
+  selectedRating = 0;
+  picker?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-star]");
+    if (!btn) return;
+    selectedRating = Number(btn.getAttribute("data-star"));
+    picker.querySelectorAll(".star-btn").forEach((el) => {
+      el.classList.toggle("on", Number(el.getAttribute("data-star")) <= selectedRating);
+    });
+  });
+
+  document.getElementById("review-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const errorEl = document.getElementById("review-error");
+    const result = addReview({
+      productId: currentProduct.id,
+      name: form.elements.namedItem("name")?.value || "",
+      rating: selectedRating,
+      text: form.elements.namedItem("text")?.value || ""
+    });
+    if (!result.ok) {
+      errorEl.hidden = false;
+      errorEl.textContent = result.error;
+      return;
+    }
+    renderProduct();
+    renderReviews();
+  });
 }
 
 function validateAndAdd() {
@@ -145,19 +247,41 @@ async function init() {
   bindCartDrawerEvents();
   showDemoNotice();
   const id = getQueryParam("id");
-  if (!id) {
+  const slugFromPath = (window.location.pathname.match(/\/p\/([^/]+)\.html$/) || [])[1];
+  const slug = document.body.getAttribute("data-product-slug") || (slugFromPath ? decodeURIComponent(slugFromPath) : "");
+  if (!id && !slug) {
     detail.innerHTML = `<p class="loading-note">Product not found.</p>`;
     return;
   }
   try {
-    const product = await getProduct(id);
+    const products = await loadProducts();
+    let product = slug
+      ? products.find((p) => p.slug === slug) || await getProductBySlug(slug)
+      : null;
+    if (!product && id) {
+      product = products.find((p) => String(p.id) === String(id)) || await getProduct(id);
+    }
     if (!product) {
       detail.innerHTML = `<p class="loading-note">Product not found.</p>`;
       return;
     }
+    if (id && product.slug && !slug) {
+      window.location.replace(`p/${encodeURIComponent(product.slug)}.html`);
+      return;
+    }
     currentProduct = product;
     renderProduct();
-    document.title = `${product.name} - VELLOURA`;
+    renderReviews();
+    document.title = `${product.name} | VELLOURA`;
+    const desc = document.querySelector('meta[name="description"]');
+    if (desc) {
+      desc.setAttribute("content", `${product.name} — GHS ${product.price_ghs}. ${product.description || "Shop VELLOURA in Accra."}`.slice(0, 160));
+    }
+    const related = relatedProducts(product, products, 4);
+    if (relatedGrid) {
+      if (related.length) renderProductGrid(relatedGrid, related);
+      else relatedGrid.innerHTML = `<p class="muted">No similar pieces right now.</p>`;
+    }
   } catch (err) {
     console.error(err);
     detail.innerHTML = `<p class="loading-note">Could not load this product. Please try again.</p>`;

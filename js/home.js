@@ -3,6 +3,7 @@
 import { loadProducts } from "./catalog.js";
 import { renderProductGrid, showDemoNotice } from "./render.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
+import "./account-ui.js";
 
 async function init() {
   renderCartDrawer();

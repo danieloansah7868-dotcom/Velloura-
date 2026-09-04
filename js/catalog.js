@@ -25,8 +25,8 @@ const LOCAL_PRODUCTS = [
     id: "2",
     dept: "fashion",
     collection: "streetwear",
-    name: "Royal Oversized Tee",
-    description: "An oversized cotton tee in royal navy for a bold everyday look.",
+    name: "Oversized Navy Tee",
+    description: "An oversized cotton tee in navy. Everyday wear, nothing extra.",
     price_ghs: 90,
     sizes: ["XS", "S", "M", "L", "XL"],
     colors: ["Royal Navy", "White", "Black"],
@@ -62,146 +62,6 @@ const LOCAL_PRODUCTS = [
     in_stock: true,
     sort_order: 4,
     image: "assets/products/fashion-modest-set.jpg"
-  },
-  {
-    id: "5",
-    dept: "fashion",
-    collection: "thrift",
-    name: "Vintage Denim Blazer",
-    description: "A one-piece vintage denim blazer. Only one available, so it will not be repeated.",
-    price_ghs: 140,
-    sizes: ["M", "L"],
-    colors: ["Grey Denim"],
-    badge: "1 of 1",
-    in_stock: true,
-    sort_order: 5,
-    image: "assets/products/fashion-denim-blazer.jpg"
-  },
-  {
-    id: "6",
-    dept: "fashion",
-    collection: "thrift",
-    name: "Classic Cream Blouse",
-    description: "A timeless cream blouse. Only one piece available.",
-    price_ghs: 80,
-    sizes: ["S", "M"],
-    colors: ["Cream"],
-    badge: "1 of 1",
-    in_stock: true,
-    sort_order: 6,
-    image: "assets/products/fashion-cream-blouse.jpg"
-  },
-  {
-    id: "7",
-    dept: "jewelry",
-    collection: null,
-    name: "Crown Gold Ring",
-    description: "24k gold plated ring with a small crown detail. Tarnish free.",
-    price_ghs: 120,
-    sizes: [],
-    colors: [],
-    badge: null,
-    in_stock: true,
-    sort_order: 7,
-    image: "assets/products/jewelry-crown-ring.jpg"
-  },
-  {
-    id: "8",
-    dept: "jewelry",
-    collection: null,
-    name: "Estate Pearl Earrings",
-    description: "18k plated drop earrings. Hypoallergenic and light on the ear.",
-    price_ghs: 150,
-    sizes: [],
-    colors: [],
-    badge: null,
-    in_stock: true,
-    sort_order: 8,
-    image: "assets/products/jewelry-pearl-earrings.jpg"
-  },
-  {
-    id: "9",
-    dept: "jewelry",
-    collection: null,
-    name: "Woven Gold Necklace",
-    description: "A fine woven gold-toned chain. Tarnish free and good for daily wear.",
-    price_ghs: 180,
-    sizes: [],
-    colors: [],
-    badge: null,
-    in_stock: true,
-    sort_order: 9,
-    image: "assets/products/jewelry-woven-necklace.jpg"
-  },
-  {
-    id: "10",
-    dept: "jewelry",
-    collection: null,
-    name: "Velloura Charm Bangle",
-    description: "18k plated adjustable bangle with a small crown charm.",
-    price_ghs: 170,
-    sizes: [],
-    colors: [],
-    badge: null,
-    in_stock: true,
-    sort_order: 10,
-    image: "assets/products/jewelry-charm-bangle.jpg"
-  },
-  {
-    id: "11",
-    dept: "hair",
-    collection: null,
-    name: "Silky Straight Bundle (24 inch)",
-    description: "A single bundle of silky straight virgin hair. Sold as a bundle.",
-    price_ghs: 480,
-    sizes: ["12 inch", "14 inch", "16 inch", "18 inch", "20 inch", "22 inch", "24 inch"],
-    colors: ["Natural Black"],
-    badge: null,
-    in_stock: true,
-    sort_order: 11,
-    image: "assets/products/hair-virgin-bundle.jpg"
-  },
-  {
-    id: "12",
-    dept: "hair",
-    collection: null,
-    name: "Lace Closure (18 inch)",
-    description: "A transparent lace closure with straight hair for a natural finish.",
-    price_ghs: 320,
-    sizes: ["14 inch", "16 inch", "18 inch", "20 inch"],
-    colors: ["Natural Black"],
-    badge: null,
-    in_stock: true,
-    sort_order: 12,
-    image: "assets/products/hair-closure.jpg"
-  },
-  {
-    id: "13",
-    dept: "wigs",
-    collection: null,
-    name: "Glueless Lace Front Wig (26 inch)",
-    description: "A long glueless lace front wig with a soft natural part.",
-    price_ghs: 850,
-    sizes: ["18 inch", "20 inch", "22 inch", "24 inch", "26 inch"],
-    colors: ["Natural Black", "Honey Blonde"],
-    badge: null,
-    in_stock: true,
-    sort_order: 13,
-    image: "assets/products/wig-lace-front.jpg"
-  },
-  {
-    id: "14",
-    dept: "wigs",
-    collection: null,
-    name: "Sleek Bob Wig",
-    description: "A polished jet black bob wig with a clean, lightweight finish.",
-    price_ghs: 650,
-    sizes: ["10 inch", "12 inch"],
-    colors: ["Jet Black", "Brown"],
-    badge: null,
-    in_stock: true,
-    sort_order: 14,
-    image: "assets/products/wig-bob.jpg"
   },
   {
     id: "15",
@@ -244,108 +104,34 @@ const LOCAL_PRODUCTS = [
     in_stock: true,
     sort_order: 17,
     image: "assets/products/fashion-pleated-skirt.jpg"
-  },
-  {
-    id: "18",
-    dept: "jewelry",
-    collection: null,
-    name: "Gilded Hoop Earrings",
-    description: "Lightweight gold hoops for everyday wear. Tarnish free.",
-    price_ghs: 95,
-    sizes: [],
-    colors: [],
-    badge: null,
-    in_stock: true,
-    sort_order: 18,
-    image: "assets/products/jewelry-gold-hoops.jpg"
-  },
-  {
-    id: "19",
-    dept: "jewelry",
-    collection: null,
-    name: "Royal Pendant Necklace",
-    description: "A delicate gold pendant with a small round charm.",
-    price_ghs: 200,
-    sizes: [],
-    colors: [],
-    badge: null,
-    in_stock: true,
-    sort_order: 19,
-    image: "assets/products/jewelry-pendant-necklace.jpg"
-  },
-  {
-    id: "20",
-    dept: "jewelry",
-    collection: null,
-    name: "Gold Link Bracelet",
-    description: "A clean gold link bracelet. Tarnish free and easy to layer.",
-    price_ghs: 110,
-    sizes: [],
-    colors: [],
-    badge: null,
-    in_stock: true,
-    sort_order: 20,
-    image: "assets/products/jewelry-link-bracelet.jpg"
-  },
-  {
-    id: "21",
-    dept: "hair",
-    collection: null,
-    name: "Deep Wave Bundle (18 inch)",
-    description: "A single bundle of deep wave virgin hair with a soft pattern.",
-    price_ghs: 420,
-    sizes: ["12 inch", "14 inch", "16 inch", "18 inch", "20 inch"],
-    colors: ["Natural Black"],
-    badge: null,
-    in_stock: true,
-    sort_order: 21,
-    image: "assets/products/hair-deep-wave-bundle.jpg"
-  },
-  {
-    id: "22",
-    dept: "hair",
-    collection: null,
-    name: "4x4 Lace Closure (16 inch)",
-    description: "A 4x4 lace closure with natural wavy hair for a soft finish.",
-    price_ghs: 280,
-    sizes: ["14 inch", "16 inch", "18 inch"],
-    colors: ["Natural Black"],
-    badge: null,
-    in_stock: true,
-    sort_order: 22,
-    image: "assets/products/hair-4x4-closure.jpg"
-  },
-  {
-    id: "23",
-    dept: "wigs",
-    collection: null,
-    name: "Body Wave Lace Front Wig (24 inch)",
-    description: "A long body wave lace front wig with a natural flow.",
-    price_ghs: 780,
-    sizes: ["18 inch", "20 inch", "22 inch", "24 inch"],
-    colors: ["Natural Black", "Dark Brown"],
-    badge: null,
-    in_stock: true,
-    sort_order: 23,
-    image: "assets/products/wig-body-wave.jpg"
-  },
-  {
-    id: "24",
-    dept: "wigs",
-    collection: null,
-    name: "Highlighted Bob Wig",
-    description: "A chic bob wig with soft honey highlights for a fresh finish.",
-    price_ghs: 550,
-    sizes: ["10 inch", "12 inch"],
-    colors: ["Honey Brown", "Jet Black"],
-    badge: null,
-    in_stock: true,
-    sort_order: 24,
-    image: "assets/products/wig-highlight-bob.jpg"
   }
 ];
 
 let productsCache = null;
+const PRODUCTS_KEY = "velloura_products_v3";
+
+function readStore() {
+  try {
+    const raw = localStorage.getItem(PRODUCTS_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? data.map(normalizeProduct).filter(isClothing) : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function writeStore(products) {
+  const list = (products || []).map(normalizeProduct).filter(isClothing);
+  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(list));
+  productsCache = list.map(cloneProduct);
+}
+
+function isClothing(product) {
+  if (product.dept && product.dept !== "fashion") return false;
+  if (product.collection === "thrift") return false;
+  return true;
+}
 
 function normalizeProduct(row) {
   const sizes = Array.isArray(row.sizes) ? row.sizes : [];
@@ -363,8 +149,16 @@ function normalizeProduct(row) {
     badge: row.badge || null,
     in_stock: row.in_stock !== false,
     sort_order: Number(row.sort_order || 0),
-    image: row.image || null
+    image: row.image || null,
+    slug: slugifyName(row.name)
   };
+}
+
+function slugifyName(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }
 
 function cloneProduct(p) {
@@ -376,12 +170,11 @@ function cloneProduct(p) {
 }
 
 export function getLocalProducts() {
-  return LOCAL_PRODUCTS.map(cloneProduct);
+  return LOCAL_PRODUCTS.map(normalizeProduct);
 }
 
-export async function loadProducts({ force = false } = {}) {
+async function loadBaseProducts() {
   if (isDemoMode) return getLocalProducts();
-  if (productsCache && !force) return productsCache.map(cloneProduct);
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Supabase is not connected.");
   const { data, error } = await sb
@@ -389,12 +182,68 @@ export async function loadProducts({ force = false } = {}) {
     .select("*")
     .order("sort_order", { ascending: true });
   if (error) throw error;
-  productsCache = (data || []).map(normalizeProduct);
-  return productsCache.map(cloneProduct);
+  return (data || []).map(normalizeProduct);
+}
+
+export async function loadProducts({ force = false } = {}) {
+  if (!force) {
+    const stored = readStore();
+    if (stored) return stored.map(cloneProduct);
+  }
+  const base = await loadBaseProducts();
+  writeStore(base);
+  return base.map(cloneProduct);
+}
+
+export function saveProduct(input) {
+  const products = readStore() || getLocalProducts();
+  const product = normalizeProduct({
+    ...input,
+    id: input.id || `p-${Date.now()}`,
+    sort_order: input.sort_order || products.length + 1
+  });
+  const idx = products.findIndex((p) => stringId(p.id) === stringId(product.id));
+  if (idx >= 0) products[idx] = { ...products[idx], ...product };
+  else products.push(product);
+  writeStore(products);
+  return cloneProduct(product);
+}
+
+export function deleteProduct(id) {
+  const products = (readStore() || getLocalProducts())
+    .filter((p) => stringId(p.id) !== stringId(id));
+  writeStore(products);
+  return products.map(cloneProduct);
 }
 
 export async function getProduct(idValue) {
   const products = await loadProducts();
   const wanted = stringId(idValue);
   return products.find((p) => stringId(p.id) === wanted) || null;
+}
+
+export async function getProductBySlug(slug) {
+  const products = await loadProducts();
+  const wanted = String(slug || "");
+  return products.find((p) => p.slug === wanted) || null;
+}
+
+export function relatedProducts(product, products, limit = 4) {
+  if (!product) return [];
+  const others = (products || []).filter((p) => (
+    stringId(p.id) !== stringId(product.id) && p.in_stock !== false
+  ));
+  const sameCollection = others.filter((p) => (
+    p.dept === product.dept && product.collection && p.collection === product.collection
+  ));
+  const sameDept = others.filter((p) => p.dept === product.dept);
+  const seen = new Set();
+  const out = [];
+  sameCollection.concat(sameDept, others).forEach((p) => {
+    const id = stringId(p.id);
+    if (seen.has(id) || out.length >= limit) return;
+    seen.add(id);
+    out.push(p);
+  });
+  return out;
 }
