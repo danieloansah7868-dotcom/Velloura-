@@ -6,7 +6,8 @@ import {
   isValidGhanaPhone,
   normalizeDigits,
   escapeHtml,
-  buildWhatsAppLink
+  buildWhatsAppLink,
+  timeGreeting
 } from "./utils.js";
 import {
   getCart,
@@ -190,7 +191,7 @@ function renderSuccess(record) {
       <div class="success-card">
         <div class="success-icon">V</div>
         <h1>Order received</h1>
-        <p>Thank you, ${escapeHtml(record.customer_name)}. Delivery to ${escapeHtml(record.area || "Greater Accra")} in ${escapeHtml(days)}.</p>
+        <p>${escapeHtml(timeGreeting(record.customer_name))}. Delivery to ${escapeHtml(record.area || "Greater Accra")} in ${escapeHtml(days)}.</p>
         <div class="code-pill">${escapeHtml(record.order_code)}</div>
         <p class="muted">
           Items: ${formatGHS(record.items_total)} · Delivery: ${record.delivery_fee === 0 ? "Free" : formatGHS(record.delivery_fee)}<br>

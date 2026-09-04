@@ -1,11 +1,13 @@
 // Greater Accra delivery areas and fees.
 // Shown at checkout only. Admin can edit fees in Seller Center.
 
-const KEY = "velloura_delivery_areas_v2";
+const KEY = "velloura_delivery_areas_v3";
 
 const INNER = { fee: 30, days: "1 day" };
-const OUTER = { fee: 25, days: "1–2 days" };
+const FAR = { fee: 30, days: "1–2 days" };
+const NEAR = { fee: 25, days: "1–2 days" };
 
+// Inner Accra and Circle: GHS 30
 const INNER_NAMES = [
   "Abeka",
   "Abelenkpe",
@@ -60,11 +62,14 @@ const INNER_NAMES = [
   "37"
 ];
 
-const OUTER_NAMES = [
+// Near Pokuase
+const NEAR_NAMES = ["Amasaman", "Pokuase"];
+
+// Far from Pokuase: GHS 30
+const FAR_NAMES = [
   "Abokobi",
   "Ablekuma",
   "Afienya",
-  "Amasaman",
   "Anyaa",
   "Ashaiman",
   "Bortianor",
@@ -79,7 +84,6 @@ const OUTER_NAMES = [
   "Medie",
   "Oduman",
   "Oyibi",
-  "Pokuase",
   "Prampram",
   "Santa Maria",
   "Sowutuom",
@@ -89,7 +93,8 @@ const OUTER_NAMES = [
 
 export const DEFAULT_AREAS = [
   ...INNER_NAMES.map((name) => ({ name, ...INNER })),
-  ...OUTER_NAMES.map((name) => ({ name, ...OUTER }))
+  ...NEAR_NAMES.map((name) => ({ name, ...NEAR })),
+  ...FAR_NAMES.map((name) => ({ name, ...FAR }))
 ].sort((a, b) => a.name.localeCompare(b.name, "en"));
 
 function normalizeArea(row) {

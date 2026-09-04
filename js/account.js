@@ -1,6 +1,6 @@
 import { currentCustomer, logoutCustomer, updateCustomer } from "./customers.js";
 import { listOrders } from "./store.js";
-import { formatGHS, escapeHtml } from "./utils.js";
+import { formatGHS, escapeHtml, timeGreeting } from "./utils.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
 
 const customer = currentCustomer();
@@ -17,7 +17,7 @@ const ordersEl = document.getElementById("account-orders");
 const form = document.getElementById("account-form");
 const notice = document.getElementById("account-notice");
 
-if (nameEl) nameEl.textContent = customer.name;
+if (nameEl) nameEl.textContent = timeGreeting(customer.name);
 if (emailEl) emailEl.textContent = customer.email;
 
 if (form) {

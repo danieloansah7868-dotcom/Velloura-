@@ -3,6 +3,8 @@
 import { loadProducts } from "./catalog.js";
 import { renderProductGrid } from "./render.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
+import { timeGreeting } from "./utils.js";
+import { currentCustomer } from "./customers.js";
 import "./account-ui.js";
 
 function flashEnd() {
@@ -33,6 +35,8 @@ function tickFlash() {
 async function init() {
   renderCartDrawer();
   bindCartDrawerEvents();
+  const kicker = document.querySelector(".hero-kicker");
+  if (kicker) kicker.textContent = timeGreeting(currentCustomer()?.name);
   tickFlash();
   setInterval(tickFlash, 1000);
 
