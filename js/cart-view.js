@@ -1,17 +1,14 @@
 // Full cart page, Jumia-style: items on the left, summary on the right.
 
 import { formatGHS } from "./utils.js";
-import { CONFIG } from "./config.js";
 import {
   getCart,
   cartSubtotal,
   cartCount,
   updateQty,
-  removeItem,
-  deliveryFee
+  removeItem
 } from "./store.js";
 import { bindCartDrawerEvents, renderCartDrawer, cartItemHTML } from "./cart-helpers.js";
-import { showDemoNotice } from "./render.js";
 import "./account-ui.js";
 
 const body = document.getElementById("cart-view-body");
@@ -35,9 +32,6 @@ function renderCartPage() {
     return;
   }
 
-  const fee = deliveryFee(subtotal, "Accra");
-  const total = subtotal + fee;
-
   body.innerHTML = `
     <h1 class="cart-page-title">Cart <span class="muted">(${count})</span></h1>
     <div class="cart-layout">
@@ -45,12 +39,9 @@ function renderCartPage() {
       <aside class="cart-summary cart-summary-card">
         <h3>Cart summary</h3>
         <div class="summary-row"><span>Subtotal</span><span>${formatGHS(subtotal)}</span></div>
-        <div class="summary-row"><span>Delivery (Accra)</span><span>${fee === 0 ? "Free" : formatGHS(fee)}</span></div>
-        ${subtotal < CONFIG.freeDeliveryThreshold
-          ? `<p class="mini-note">Add ${formatGHS(CONFIG.freeDeliveryThreshold - subtotal)} more for free delivery.</p>`
-          : `<p class="mini-note success-note">Free delivery unlocked.</p>`}
-        <div class="summary-row total"><span>Total</span><span>${formatGHS(total)}</span></div>
-        <a href="checkout.html" class="btn btn-primary btn-full">Checkout (${formatGHS(total)})</a>
+        <div class="summary-row"><span>Delivery</span><span>At checkout</span></div>
+        <div class="summary-row total"><span>Total</span><span>${formatGHS(subtotal)}</span></div>
+        <a href="checkout.html" class="btn btn-primary btn-full">Checkout (${formatGHS(subtotal)})</a>
       </aside>
     </div>`;
 }
@@ -58,7 +49,6 @@ function renderCartPage() {
 function init() {
   renderCartDrawer();
   bindCartDrawerEvents();
-  showDemoNotice();
   renderCartPage();
 
   if (initialized) return;

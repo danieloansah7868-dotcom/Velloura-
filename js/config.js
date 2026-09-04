@@ -18,12 +18,8 @@ export const CONFIG = Object.freeze({
   // Checkout payment. The customer sees "Pay"; Valmont is the processor.
   valmontPayUrl: "https://valmontpay.app",
 
-  // Delivery
-  deliveryFees: {
-    Accra: 20,
-    Kumasi: 30,
-    Other: 40
-  },
+  // Delivery is Greater Accra only. Area fees live in js/delivery.js
+  // and can be edited in Seller Center. Not listed on public pages.
   freeDeliveryThreshold: 500,
 
   // Seller Center login (change these before launch).

@@ -3,6 +3,7 @@ import { formatGHS, escapeHtml, getProductImage, buildWhatsAppLink, normalizeDig
 import { listOrders, updateOrderStatus } from "./store.js";
 import { loadProducts, saveProduct, deleteProduct } from "./catalog.js";
 import { listCustomers } from "./customers.js";
+import { listDeliveryAreas, saveDeliveryAreas, DEFAULT_AREAS } from "./delivery.js";
 
 const allowed = requireAdmin();
 
@@ -14,12 +15,13 @@ const homeEl = document.getElementById("admin-home");
 const ordersEl = document.getElementById("admin-orders");
 const productsEl = document.getElementById("admin-products");
 const customersEl = document.getElementById("admin-customers");
+const deliveryEl = document.getElementById("admin-delivery");
 const tabs = document.querySelectorAll("[data-tab]");
 
 const session = currentAdmin();
 if (emailEl && session) emailEl.textContent = session.email;
 
-const TABS = ["home", "orders", "products", "customers"];
+const TABS = ["home", "orders", "products", "customers", "delivery"];
 let orderFilter = "all";
 let openOrderCode = "";
 
@@ -30,12 +32,12 @@ function tabFromHash() {
 
 function showTab(name) {
   const tab = TABS.includes(name) ? name : "home";
-  const map = { home: homeEl, orders: ordersEl, products: productsEl, customers: customersEl };
+  const map = { home: homeEl, orders: ordersEl, products: productsEl, customers: customersEl, delivery: deliveryEl };
   Object.entries(map).forEach(([key, el]) => {
     if (el) el.hidden = key !== tab;
   });
   tabs.forEach((el) => el.classList.toggle("active", el.getAttribute("data-tab") === tab));
-  const labels = { home: "Dashboard", orders: "Orders", products: "Products", customers: "Customers" };
+  const labels = { home: "Dashboard", orders: "Orders", products: "Products", customers: "Customers", delivery: "Delivery" };
   if (titleEl) titleEl.textContent = labels[tab] || "Seller Center";
   if (`#${tab}` !== window.location.hash) {
     window.history.replaceState(null, "", `#${tab}`);
@@ -112,7 +114,8 @@ function customerWhatsAppLink(order) {
   if (!number) return "";
   const message = [
     `Hi ${order.customer_name || ""}, this is Velloura.`,
-    `About your order ${order.order_code}.`
+    `Order number: ${order.order_code}.`,
+    `Status: ${statusLabel(order.status)}.`
   ].join(" ");
   return buildWhatsAppLink(number, message);
 }
@@ -162,6 +165,17 @@ function productFormHTML(product) {
         <div class="field">
           <label for="p-price">Price (GHS)</label>
           <input id="p-price" name="price_ghs" type="number" min="0" step="1" required value="${escapeHtml(p.price_ghs)}">
+        </div>
+        <div class="field">
+          <label for="p-was">Old price (GHS)</label>
+          <input id="p-was" name="compare_at_ghs" type="number" min="0" step="1" value="${escapeHtml(p.compare_at_ghs || "")}">
+        </div>
+        <div class="field">
+          <label for="p-flash">Flash sale</label>
+          <select id="p-flash" name="flash_sale">
+            <option value="false" ${p.flash_sale ? "" : "selected"}>No</option>
+            <option value="true" ${p.flash_sale ? "selected" : ""}>Yes</option>
+          </select>
         </div>
         <div class="field">
           <label for="p-collection">Collection</label>
@@ -460,6 +474,59 @@ function renderProducts(products, editingId) {
   bindProductForm(products);
 }
 
+function renderDelivery() {
+  if (!deliveryEl) return;
+  const areas = listDeliveryAreas();
+  deliveryEl.innerHTML = `
+    <div class="admin-card">
+      <div class="admin-card-head">
+        <h2>Greater Accra delivery fees</h2>
+      </div>
+      <p class="muted">Customers pick an area at checkout. Fees and days are not listed on the shop pages.</p>
+      <form id="delivery-form">
+        <div class="admin-table-wrap">
+          <table class="admin-table">
+            <thead>
+              <tr><th>Area</th><th>Fee (GHS)</th><th>Days</th></tr>
+            </thead>
+            <tbody>
+              ${areas.map((area, i) => `
+                <tr>
+                  <td><input name="name-${i}" value="${escapeHtml(area.name)}" required></td>
+                  <td><input name="fee-${i}" type="number" min="0" step="1" value="${escapeHtml(area.fee)}" required></td>
+                  <td><input name="days-${i}" value="${escapeHtml(area.days)}" required></td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
+        </div>
+        <input type="hidden" name="count" value="${areas.length}">
+        <div class="admin-form-actions">
+          <button class="btn btn-primary" type="submit">Save delivery fees</button>
+          <button class="btn btn-ghost" type="button" id="reset-delivery">Reset to defaults</button>
+        </div>
+      </form>
+    </div>`;
+  document.getElementById("delivery-form")?.addEventListener("submit", (event) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const count = Number(form.elements.namedItem("count")?.value || 0);
+    const next = [];
+    for (let i = 0; i < count; i += 1) {
+      next.push({
+        name: form.elements.namedItem(`name-${i}`)?.value || "",
+        fee: form.elements.namedItem(`fee-${i}`)?.value || 0,
+        days: form.elements.namedItem(`days-${i}`)?.value || ""
+      });
+    }
+    saveDeliveryAreas(next);
+    renderDelivery();
+  });
+  document.getElementById("reset-delivery")?.addEventListener("click", () => {
+    saveDeliveryAreas(DEFAULT_AREAS);
+    renderDelivery();
+  });
+}
+
 function renderCustomers() {
   const customers = listCustomers();
   customersEl.innerHTML = `
@@ -545,6 +612,7 @@ async function boot() {
   renderOrders(orders);
   renderProducts(products);
   renderCustomers();
+  renderDelivery();
   updateOrdersNav(orders);
   if (!bound) {
     bound = true;

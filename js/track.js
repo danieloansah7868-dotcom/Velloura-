@@ -1,5 +1,5 @@
 import { findOrderRemote } from "./store.js";
-import { formatGHS, escapeHtml, getQueryParam } from "./utils.js";
+import { formatGHS, escapeHtml, getQueryParam, normalizeDigits } from "./utils.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
 import "./account-ui.js";
 
@@ -42,7 +42,7 @@ function renderOrder(order) {
       </div>
       <p class="muted">${escapeHtml(order.customer_name || "")} · ${escapeHtml(order.area || "")}</p>
       ${cancelled
-        ? `<p class="muted">This order was cancelled. Message Velloura on WhatsApp if you need help.</p>`
+        ? `<p class="muted">This order was cancelled.</p>`
         : `<ol class="track-steps">
             ${STEPS.map((step) => `<li class="${stepClass(order.status, step)}">${statusLabel(step)}</li>`).join("")}
           </ol>`}
@@ -58,9 +58,14 @@ function renderOrder(order) {
 
 form?.addEventListener("submit", async (event) => {
   event.preventDefault();
-  const code = form.elements.namedItem("code")?.value || "";
   const phone = form.elements.namedItem("phone")?.value || "";
+  const code = form.elements.namedItem("code")?.value || "";
   errorEl.hidden = true;
+  if (!normalizeDigits(phone)) {
+    errorEl.hidden = false;
+    errorEl.textContent = "Enter the phone number used at checkout.";
+    return;
+  }
   const submitBtn = form.querySelector("button[type=submit]");
   if (submitBtn) {
     submitBtn.disabled = true;
@@ -73,7 +78,7 @@ form?.addEventListener("submit", async (event) => {
   }
   if (!order) {
     errorEl.hidden = false;
-    errorEl.textContent = "No order matches that code and phone number.";
+    errorEl.textContent = "No order matches that phone number.";
     result.hidden = true;
     result.innerHTML = "";
     return;
@@ -84,10 +89,10 @@ form?.addEventListener("submit", async (event) => {
 function init() {
   renderCartDrawer();
   bindCartDrawerEvents();
+  const phone = getQueryParam("phone");
   const code = getQueryParam("code");
-  if (code && form?.elements.namedItem("code")) {
-    form.elements.namedItem("code").value = code;
-  }
+  if (phone && form?.elements.namedItem("phone")) form.elements.namedItem("phone").value = phone;
+  if (code && form?.elements.namedItem("code")) form.elements.namedItem("code").value = code;
 }
 
 init();

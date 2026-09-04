@@ -93,7 +93,12 @@ export function buildWhatsAppLink(number, message) {
 }
 
 export function getConfigNotice() {
-  return isDemoMode
-    ? "Demo mode: connect Supabase in js/config.js to save real orders and bookings."
-    : "";
+  return "";
+}
+
+export function discountPercent(product) {
+  const price = Number(product?.price_ghs || 0);
+  const was = Number(product?.compare_at_ghs || 0);
+  if (!(was > price) || !(price > 0)) return 0;
+  return Math.round(((was - price) / was) * 100);
 }

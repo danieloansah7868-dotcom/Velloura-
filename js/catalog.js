@@ -14,9 +14,11 @@ const LOCAL_PRODUCTS = [
     name: "Brooklyn Crop Set",
     description: "A soft two-piece crop top and joggers set for easy street days.",
     price_ghs: 180,
+    compare_at_ghs: 230,
+    flash_sale: true,
     sizes: ["XS", "S", "M", "L", "XL"],
     colors: ["Black", "White"],
-    badge: null,
+    badge: "Flash sale",
     in_stock: true,
     sort_order: 1,
     image: "assets/products/fashion-crop-set.jpg"
@@ -28,9 +30,11 @@ const LOCAL_PRODUCTS = [
     name: "Oversized Navy Tee",
     description: "An oversized cotton tee in navy. Everyday wear, nothing extra.",
     price_ghs: 90,
+    compare_at_ghs: 120,
+    flash_sale: true,
     sizes: ["XS", "S", "M", "L", "XL"],
     colors: ["Royal Navy", "White", "Black"],
-    badge: null,
+    badge: "Flash sale",
     in_stock: true,
     sort_order: 2,
     image: "assets/products/fashion-royal-tee.jpg"
@@ -84,9 +88,11 @@ const LOCAL_PRODUCTS = [
     name: "Navy Wide-Leg Trousers",
     description: "High-waist navy trousers with a relaxed wide leg. A polished streetwear staple.",
     price_ghs: 160,
+    compare_at_ghs: 200,
+    flash_sale: true,
     sizes: ["XS", "S", "M", "L", "XL"],
     colors: ["Navy"],
-    badge: null,
+    badge: "Flash sale",
     in_stock: true,
     sort_order: 16,
     image: "assets/products/fashion-wide-leg-trousers.jpg"
@@ -98,9 +104,11 @@ const LOCAL_PRODUCTS = [
     name: "Burgundy Pleated Skirt",
     description: "A modern burgundy pleated midi skirt with a soft movement.",
     price_ghs: 130,
+    compare_at_ghs: 170,
+    flash_sale: true,
     sizes: ["XS", "S", "M", "L"],
     colors: ["Burgundy"],
-    badge: null,
+    badge: "Flash sale",
     in_stock: true,
     sort_order: 17,
     image: "assets/products/fashion-pleated-skirt.jpg"
@@ -108,7 +116,7 @@ const LOCAL_PRODUCTS = [
 ];
 
 let productsCache = null;
-const PRODUCTS_KEY = "velloura_products_v3";
+const PRODUCTS_KEY = "velloura_products_v4";
 
 function readStore() {
   try {

@@ -1,7 +1,7 @@
 // Shop page: department chips with e-commerce product grid.
 
 import { loadProducts } from "./catalog.js";
-import { renderProductGrid, showDemoNotice, showNotice } from "./render.js";
+import { renderProductGrid, showNotice } from "./render.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
 import { getQueryParam } from "./utils.js";
 import { CATEGORY_FILES, scoreProduct } from "./keywords.js";
@@ -120,7 +120,6 @@ function bindChips() {
 async function init() {
   renderCartDrawer();
   bindCartDrawerEvents();
-  showDemoNotice();
   if (applyUrlState()) return;
   bindChips();
   updateChips();

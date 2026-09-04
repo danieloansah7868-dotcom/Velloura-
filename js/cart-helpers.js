@@ -85,12 +85,9 @@ export function renderCartDrawer({ area = DEFAULT_AREA } = {}) {
       <div class="cart-summary cart-summary-card">
         <h3>Cart summary</h3>
         <div class="summary-row"><span>Subtotal</span><span>${formatGHS(subtotal)}</span></div>
-        <div class="summary-row"><span>Delivery</span><span>${fee === 0 ? "Free" : formatGHS(fee)}</span></div>
-        ${subtotal < CONFIG.freeDeliveryThreshold
-          ? `<p class="mini-note">Add ${formatGHS(CONFIG.freeDeliveryThreshold - subtotal)} more for free delivery.</p>`
-          : `<p class="mini-note success-note">Free delivery unlocked.</p>`}
+        <div class="summary-row"><span>Delivery</span><span>At checkout</span></div>
         <div class="summary-row total"><span>Total</span><span>${formatGHS(total)}</span></div>
-        <a href="${rootHref("checkout.html")}" class="btn btn-primary btn-full">Checkout (${formatGHS(total)})</a>
+        <a href="${rootHref("checkout.html")}" class="btn btn-primary btn-full">Checkout (${formatGHS(subtotal)})</a>
         <a href="${rootHref("cart-view.html")}" class="cart-view-link">View cart</a>
       </div>`;
   }

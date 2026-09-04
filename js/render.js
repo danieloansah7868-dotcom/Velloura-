@@ -1,6 +1,6 @@
 // Small shared rendering helpers used across pages.
 
-import { formatGHS, escapeHtml, getProductImage, getConfigNotice, stringId, productPageHref } from "./utils.js";
+import { formatGHS, escapeHtml, getProductImage, getConfigNotice, stringId, productPageHref, discountPercent } from "./utils.js";
 import { addToCart } from "./store.js";
 import { openCartDrawer, renderCartDrawer } from "./cart-helpers.js";
 import { isSaved, toggleSaved, updateWishBadge } from "./wishlist.js";
@@ -12,17 +12,24 @@ function defaultOption(values) {
 
 export function productCardHTML(product) {
   const price = formatGHS(product.price_ghs);
-  const dept = product.dept ? String(product.dept) : "";
-  const badge = product.badge
-    ? `<span class="badge">${escapeHtml(product.badge)}</span>`
-    : product.in_stock === false
-      ? `<span class="badge in-stock">Sold out</span>`
-      : "";
+  const off = discountPercent(product);
+  const was = Number(product.compare_at_ghs || 0);
+  const saleBadge = off
+    ? `<span class="badge badge-sale">-${off}%</span>`
+    : "";
+  const badge = product.in_stock === false
+    ? `<span class="badge in-stock">Sold out</span>`
+    : product.flash_sale
+      ? `<span class="badge badge-flash">Flash sale</span>`
+      : product.badge
+        ? `<span class="badge">${escapeHtml(product.badge)}</span>`
+        : saleBadge;
   const saved = isSaved(product.id);
   const rating = ratingSummary(product.id);
-  const ratingLine = rating.count
-    ? `<span class="card-rating"><span class="stars">${starsText(rating.average)}</span> ${rating.average} (${rating.count})</span>`
-    : "";
+  const ratingLine = `<span class="card-rating"><span class="stars">${starsText(rating.average)}</span> ${rating.count ? `${rating.average} (${rating.count})` : "(0)"}</span>`;
+  const priceLine = was > Number(product.price_ghs)
+    ? `<span class="product-card-price"><span class="price-now">${price}</span> <span class="price-was">${formatGHS(was)}</span>${off ? ` <span class="price-off">-${off}%</span>` : ""}</span>`
+    : `<span class="product-card-price">${price}</span>`;
   return `
     <article class="product-card">
       <button class="wish-toggle ${saved ? "is-saved" : ""}" type="button" data-save-id="${escapeHtml(stringId(product.id))}" aria-label="${saved ? "Remove from saved" : "Save item"}" aria-pressed="${saved}">
@@ -36,10 +43,9 @@ export function productCardHTML(product) {
           ${badge}
         </div>
         <div class="product-card-body">
-          ${dept ? `<span class="card-dept">${escapeHtml(dept)}</span>` : ""}
           <span class="product-card-name">${escapeHtml(product.name)}</span>
           ${ratingLine}
-          <span class="product-card-price">${price}</span>
+          ${priceLine}
         </div>
       </a>
       <button class="btn btn-card-add" type="button" data-add-to-cart="${escapeHtml(stringId(product.id))}" ${product.in_stock === false ? "disabled" : ""}>Add to bag</button>

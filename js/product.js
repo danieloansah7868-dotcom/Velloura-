@@ -2,9 +2,9 @@
 
 import { getProduct, getProductBySlug, loadProducts, relatedProducts } from "./catalog.js";
 import { addToCart } from "./store.js";
-import { formatGHS, escapeHtml, getProductImage, getQueryParam } from "./utils.js";
+import { formatGHS, escapeHtml, getProductImage, getQueryParam, discountPercent } from "./utils.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
-import { showDemoNotice, showNotice, hideNotice, renderProductGrid } from "./render.js";
+import { showNotice, hideNotice, renderProductGrid } from "./render.js";
 import { isSaved, toggleSaved, updateWishBadge } from "./wishlist.js";
 import { addReview, listReviews, ratingSummary, starsText } from "./reviews.js";
 import { currentCustomer } from "./customers.js";
@@ -43,9 +43,13 @@ function renderProduct() {
   const stock = p.in_stock === false
     ? `<span class="badge in-stock">Sold out</span>`
     : `<span class="badge in-stock">In stock</span>`;
-  const ratingLine = rating.count
-    ? `<p class="review-summary"><span class="stars">${starsText(rating.average)}</span> ${rating.average} · ${rating.count} review${rating.count === 1 ? "" : "s"}</p>`
-    : "";
+  const ratingLine = `<p class="review-summary"><span class="stars">${starsText(rating.average)}</span> ${rating.count ? `${rating.average} · ${rating.count} review${rating.count === 1 ? "" : "s"}` : "No reviews yet"}</p>`;
+  const off = discountPercent(p);
+  const was = Number(p.compare_at_ghs || 0);
+  const priceBlock = was > Number(p.price_ghs)
+    ? `<p class="price-big"><span class="price-now">${formatGHS(p.price_ghs)}</span> <span class="price-was">${formatGHS(was)}</span>${off ? ` <span class="price-off">-${off}%</span>` : ""}</p>`
+    : `<p class="price-big">${formatGHS(p.price_ghs)}</p>`;
+  const flashBadge = p.flash_sale ? `<span class="badge badge-flash">Flash sale</span>` : "";
 
   const sizeChoices = sizes.length
     ? `<span class="choice-label">Size</span>
@@ -79,11 +83,12 @@ function renderProduct() {
     </div>
     <div class="product-info">
       ${deptLabel}
+      ${flashBadge}
       ${badge}
       ${stock}
       <h1>${escapeHtml(p.name)}</h1>
       ${ratingLine}
-      <p class="price-big">${formatGHS(p.price_ghs)}</p>
+      ${priceBlock}
       <p>${escapeHtml(p.description || "A stylish piece from Velloura.")}</p>
       ${jewelryNote}
       ${sizeChoices}
@@ -91,7 +96,7 @@ function renderProduct() {
       ${quantityBlock}
       <p><button class="btn btn-ghost" type="button" id="save-product">${isSaved(p.id) ? "Saved" : "Save for later"}</button></p>
       <div class="pdp-perks">
-        <p>Nationwide delivery in Ghana</p>
+        <p>Delivery in Greater Accra</p>
         <p>Pay with MoMo or card<br><span class="muted">Valmont</span></p>
         <p>Fitting photos on request for clothing</p>
       </div>
@@ -245,7 +250,6 @@ function validateAndAdd() {
 async function init() {
   renderCartDrawer();
   bindCartDrawerEvents();
-  showDemoNotice();
   const id = getQueryParam("id");
   const slugFromPath = (window.location.pathname.match(/\/p\/([^/]+)\.html$/) || [])[1];
   const slug = document.body.getAttribute("data-product-slug") || (slugFromPath ? decodeURIComponent(slugFromPath) : "");

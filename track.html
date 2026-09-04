@@ -15,7 +15,7 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body>
-  <div class="announce">We deliver across Ghana · Pay with MoMo or card</div>
+  <div class="announce">Delivery in Greater Accra · Pay with MoMo or card</div>
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="index.html">
@@ -64,18 +64,18 @@
   <main>
     <section class="page-intro">
       <h1>Track order</h1>
-      <p>Enter the order code from your confirmation and the phone number used at checkout.</p>
+      <p>Track with the phone number you used at checkout. Order code is optional.</p>
     </section>
 
     <section class="section">
       <form class="form-card" id="track-form" novalidate>
         <div class="field">
-          <label for="code">Order code</label>
-          <input id="code" name="code" type="text" placeholder="VEL-1042" autocomplete="off" required>
-        </div>
-        <div class="field">
           <label for="phone">Phone number</label>
           <input id="phone" name="phone" type="tel" placeholder="0XX XXX XXXX" required>
+        </div>
+        <div class="field">
+          <label for="code">Order number <span class="hint">(optional)</span></label>
+          <input id="code" name="code" type="text" placeholder="VEL-1042" autocomplete="off">
         </div>
         <p id="track-error" class="error-text" hidden></p>
         <button class="btn btn-primary" type="submit">Track</button>

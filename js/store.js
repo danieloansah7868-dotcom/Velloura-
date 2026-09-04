@@ -5,6 +5,7 @@
 import { CONFIG, isDemoMode } from "./config.js";
 import { normalizeDigits, formatGHS, stringId } from "./utils.js";
 import { getSupabaseClient, waitForSupabase } from "./supabase.js";
+import { areaDeliveryFee, areaDeliveryDays, getDeliveryArea } from "./delivery.js";
 
 const CART_KEY = "velloura_cart_v1";
 const ORDERS_KEY = "velloura_orders_v1";
@@ -95,10 +96,15 @@ export function cartSubtotal() {
 }
 
 export function deliveryFee(subtotal, area) {
-  if (subtotal >= CONFIG.freeDeliveryThreshold) return 0;
-  if (area === "Kumasi") return CONFIG.deliveryFees.Kumasi;
-  if (area === "Other") return CONFIG.deliveryFees.Other;
-  return CONFIG.deliveryFees.Accra;
+  return areaDeliveryFee(area, subtotal, CONFIG.freeDeliveryThreshold);
+}
+
+export function deliveryDays(area) {
+  return areaDeliveryDays(area);
+}
+
+export function isDeliverableArea(area) {
+  return Boolean(getDeliveryArea(area));
 }
 
 function makeOrderCode() {
@@ -257,7 +263,11 @@ export async function placeBooking(payload) {
 }
 
 export function buildOrderSummaryText(record) {
-  const lines = ["Hi Velloura, I just placed an order.", `Order code: ${record.order_code}`];
+  const lines = [
+    "Hi Velloura, here is my order number and status.",
+    `Order number: ${record.order_code}`,
+    `Status: ${record.status || "Pending"}`
+  ];
   lines.push("Items:");
   record.items.forEach((item, index) => {
     const sizeText = item.size ? ` / ${item.size}` : "";
