@@ -1,5 +1,5 @@
 import { requireAdmin, logout, currentAdmin } from "./auth.js";
-import { formatGHS, escapeHtml, getProductImage, buildWhatsAppLink, normalizeDigits } from "./utils.js";
+import { formatGHS, escapeHtml, getProductImage, buildWhatsAppLink, normalizeDigits, timeGreeting } from "./utils.js";
 import { listOrders, updateOrderStatus } from "./store.js";
 import { loadProducts, saveProduct, deleteProduct } from "./catalog.js";
 import { listCustomers } from "./customers.js";
@@ -113,10 +113,10 @@ function customerWhatsAppLink(order) {
   const number = toWhatsAppNumber(order.phone);
   if (!number) return "";
   const message = [
-    `Hi ${order.customer_name || ""}, this is Velloura.`,
+    `${timeGreeting(order.customer_name)},`,
     `Order number: ${order.order_code}.`,
     `Status: ${statusLabel(order.status)}.`
-  ].join(" ");
+  ].join("\n");
   return buildWhatsAppLink(number, message);
 }
 

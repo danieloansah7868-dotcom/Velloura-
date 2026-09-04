@@ -26,7 +26,7 @@ import "./account-ui.js";
 
 const content = document.getElementById("checkout-content");
 const areas = listDeliveryAreas();
-let selectedArea = areas[0]?.name || "East Legon";
+let selectedArea = "";
 
 function renderOrderItems() {
   return getCart().map((item) => `
@@ -37,18 +37,20 @@ function renderOrderItems() {
 }
 
 function areaOptions(selected) {
-  return areas.map((area) => {
+  const options = areas.map((area) => {
     const isOn = area.name === selected;
     return `<option value="${escapeHtml(area.name)}" ${isOn ? "selected" : ""}>${escapeHtml(area.name)}</option>`;
-  }).join("");
+  });
+  return `<option value="">Select your area</option>${options.join("")}`;
 }
 
 function renderCheckout() {
   const items = getCart();
   const subtotal = cartSubtotal();
-  const fee = deliveryFee(subtotal, selectedArea);
-  const days = deliveryDays(selectedArea);
-  const total = subtotal + fee;
+  const hasArea = Boolean(selectedArea);
+  const fee = hasArea ? deliveryFee(subtotal, selectedArea) : null;
+  const days = hasArea ? deliveryDays(selectedArea) : "";
+  const total = hasArea ? subtotal + fee : subtotal;
 
   const existingForm = document.getElementById("checkout-form");
   const customer = currentCustomer();
@@ -75,8 +77,8 @@ function renderCheckout() {
       <div class="form-card">
         <h2>Your order</h2>
         ${items.length ? renderOrderItems() : `<p class="muted">Your bag is empty.</p>`}
-        <div class="summary-row"><span>Delivery</span><span>${fee === 0 ? "Free" : formatGHS(fee)}</span></div>
-        <div class="summary-row"><span>Arrives</span><span>${escapeHtml(days)}</span></div>
+        <div class="summary-row"><span>Delivery</span><span>${fee == null ? "—" : fee === 0 ? "Free" : formatGHS(fee)}</span></div>
+        <div class="summary-row"><span>Arrives</span><span>${escapeHtml(days || "—")}</span></div>
         <div class="summary-row total"><span>Total</span><span>${formatGHS(total)}</span></div>
       </div>
 
@@ -102,7 +104,7 @@ function renderCheckout() {
             <select id="area" name="area" required>
               ${areaOptions(selectedArea)}
             </select>
-            <span class="hint">We deliver in Greater Accra only. Fee and delivery days update when you pick an area.</span>
+            <span class="hint">Greater Accra only.</span>
           </div>
           <div class="field">
             <label for="notes">Landmark or note <span class="hint">(optional)</span></label>
@@ -119,10 +121,6 @@ function renderCheckout() {
               <span>Valmont · MTN MoMo, Vodafone Cash, AirtelTigo or card</span>
             </span>
           </label>
-        </div>
-
-        <div class="notice-box">
-          Tap Pay now. Track with your phone number. WhatsApp is for your order number and status.
         </div>
 
         <div id="form-error" class="error-text" hidden></div>
@@ -192,12 +190,12 @@ function renderSuccess(record) {
       <div class="success-card">
         <div class="success-icon">V</div>
         <h1>Order received</h1>
-        <p>Thank you, ${escapeHtml(record.customer_name)}. Pay now. Delivery to ${escapeHtml(record.area || "Greater Accra")} in ${escapeHtml(days)}.</p>
+        <p>Thank you, ${escapeHtml(record.customer_name)}. Delivery to ${escapeHtml(record.area || "Greater Accra")} in ${escapeHtml(days)}.</p>
         <div class="code-pill">${escapeHtml(record.order_code)}</div>
-        <p class="muted">Track with your phone number.<br>
-          WhatsApp is for your order number and status.<br>
+        <p class="muted">
           Items: ${formatGHS(record.items_total)} · Delivery: ${record.delivery_fee === 0 ? "Free" : formatGHS(record.delivery_fee)}<br>
-          <strong>Total: ${formatGHS(record.total_ghs)}</strong></p>
+          <strong>Total: ${formatGHS(record.total_ghs)}</strong>
+        </p>
         <a class="btn btn-primary btn-full pay-now-btn" href="${escapeHtml(payHref)}" target="_blank" rel="noopener">
           <span>Pay now</span>
           <small>Valmont</small>

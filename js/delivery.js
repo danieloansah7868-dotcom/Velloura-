@@ -1,69 +1,96 @@
 // Greater Accra delivery areas and fees.
 // Shown at checkout only. Admin can edit fees in Seller Center.
 
-const KEY = "velloura_delivery_areas_v1";
+const KEY = "velloura_delivery_areas_v2";
+
+const INNER = { fee: 30, days: "1 day" };
+const OUTER = { fee: 25, days: "1–2 days" };
+
+const INNER_NAMES = [
+  "Abeka",
+  "Abelenkpe",
+  "Accra Central",
+  "Accra New Town",
+  "Achimota",
+  "Adabraka",
+  "Adenta",
+  "Airport Residential",
+  "Alajo",
+  "Ashongman",
+  "Asylum Down",
+  "Burma Camp",
+  "Cantonments",
+  "Circle",
+  "Dansoman",
+  "Darkuman",
+  "Dome",
+  "Dzorwulu",
+  "East Legon",
+  "Haatso",
+  "Kaneshie",
+  "Kokomlemle",
+  "Korle Bu",
+  "Kwabenya",
+  "La",
+  "Labadi",
+  "Labone",
+  "Lapaz",
+  "Lashibi",
+  "Legon",
+  "Madina",
+  "Mallam",
+  "Mamprobi",
+  "Mataheko",
+  "McCarthy Hill",
+  "Nima",
+  "North Kaneshie",
+  "North Legon",
+  "Nungua",
+  "Odorkor",
+  "Ofankor",
+  "Osu",
+  "Ridge",
+  "Roman Ridge",
+  "Sakumono",
+  "Spintex",
+  "Taifa",
+  "Tesano",
+  "Teshie",
+  "West Legon",
+  "37"
+];
+
+const OUTER_NAMES = [
+  "Abokobi",
+  "Ablekuma",
+  "Afienya",
+  "Amasaman",
+  "Anyaa",
+  "Ashaiman",
+  "Bortianor",
+  "Dawhenya",
+  "Dodowa",
+  "Gbawe",
+  "Kasoa",
+  "Klagon",
+  "Kokrobite",
+  "Kpone",
+  "Kwashieman",
+  "Medie",
+  "Oduman",
+  "Oyibi",
+  "Pokuase",
+  "Prampram",
+  "Santa Maria",
+  "Sowutuom",
+  "Tema",
+  "Weija"
+];
 
 export const DEFAULT_AREAS = [
-  { name: "Abeka", fee: 20, days: "1 day" },
-  { name: "Abokobi", fee: 25, days: "1–2 days" },
-  { name: "Ablekuma", fee: 25, days: "1–2 days" },
-  { name: "Accra Central", fee: 20, days: "1 day" },
-  { name: "Achimota", fee: 20, days: "1 day" },
-  { name: "Adabraka", fee: 20, days: "1 day" },
-  { name: "Adenta", fee: 20, days: "1 day" },
-  { name: "Afienya", fee: 25, days: "1–2 days" },
-  { name: "Airport Residential", fee: 20, days: "1 day" },
-  { name: "Alajo", fee: 20, days: "1 day" },
-  { name: "Amasaman", fee: 25, days: "1–2 days" },
-  { name: "Anyaa", fee: 25, days: "1–2 days" },
-  { name: "Ashaiman", fee: 25, days: "1–2 days" },
-  { name: "Ashongman", fee: 20, days: "1 day" },
-  { name: "Asylum Down", fee: 20, days: "1 day" },
-  { name: "Bortianor", fee: 25, days: "1–2 days" },
-  { name: "Cantonments", fee: 20, days: "1 day" },
-  { name: "Circle", fee: 20, days: "1 day" },
-  { name: "Dansoman", fee: 20, days: "1 day" },
-  { name: "Darkuman", fee: 20, days: "1 day" },
-  { name: "Dawhenya", fee: 25, days: "1–2 days" },
-  { name: "Dodowa", fee: 25, days: "1–2 days" },
-  { name: "Dome", fee: 20, days: "1 day" },
-  { name: "Dzorwulu", fee: 20, days: "1 day" },
-  { name: "East Legon", fee: 20, days: "1 day" },
-  { name: "Gbawe", fee: 25, days: "1–2 days" },
-  { name: "Haatso", fee: 20, days: "1 day" },
-  { name: "Kaneshie", fee: 20, days: "1 day" },
-  { name: "Kasoa", fee: 25, days: "1–2 days" },
-  { name: "Kokrobite", fee: 25, days: "1–2 days" },
-  { name: "Kpone", fee: 25, days: "1–2 days" },
-  { name: "Kwabenya", fee: 20, days: "1 day" },
-  { name: "Kwashieman", fee: 25, days: "1–2 days" },
-  { name: "Labone", fee: 20, days: "1 day" },
-  { name: "Lapaz", fee: 20, days: "1 day" },
-  { name: "Lashibi", fee: 20, days: "1 day" },
-  { name: "Legon", fee: 20, days: "1 day" },
-  { name: "Madina", fee: 20, days: "1 day" },
-  { name: "Mallam", fee: 20, days: "1 day" },
-  { name: "McCarthy Hill", fee: 20, days: "1 day" },
-  { name: "Medie", fee: 25, days: "1–2 days" },
-  { name: "Nungua", fee: 20, days: "1 day" },
-  { name: "Oduman", fee: 25, days: "1–2 days" },
-  { name: "Ofankor", fee: 20, days: "1 day" },
-  { name: "Osu", fee: 20, days: "1 day" },
-  { name: "Oyibi", fee: 25, days: "1–2 days" },
-  { name: "Pokuase", fee: 25, days: "1–2 days" },
-  { name: "Prampram", fee: 25, days: "1–2 days" },
-  { name: "Ridge", fee: 20, days: "1 day" },
-  { name: "Roman Ridge", fee: 20, days: "1 day" },
-  { name: "Sakumono", fee: 20, days: "1 day" },
-  { name: "Santa Maria", fee: 25, days: "1–2 days" },
-  { name: "Sowutuom", fee: 25, days: "1–2 days" },
-  { name: "Spintex", fee: 20, days: "1 day" },
-  { name: "Taifa", fee: 20, days: "1 day" },
-  { name: "Tema", fee: 20, days: "1 day" },
-  { name: "Tesano", fee: 20, days: "1 day" },
-  { name: "Teshie", fee: 20, days: "1 day" },
-  { name: "Weija", fee: 25, days: "1–2 days" }
-];
+  ...INNER_NAMES.map((name) => ({ name, ...INNER })),
+  ...OUTER_NAMES.map((name) => ({ name, ...OUTER }))
+].sort((a, b) => a.name.localeCompare(b.name, "en"));
 
 function normalizeArea(row) {
   return {
@@ -102,7 +129,7 @@ export function getDeliveryArea(name) {
 export function areaDeliveryFee(areaName, subtotal, freeFrom) {
   if (Number(subtotal) >= Number(freeFrom || 500)) return 0;
   const area = getDeliveryArea(areaName);
-  return area ? area.fee : 20;
+  return area ? area.fee : 30;
 }
 
 export function areaDeliveryDays(areaName) {

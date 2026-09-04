@@ -3,7 +3,7 @@
 // - Supabase mode: anonymous inserts into public.orders and public.bookings.
 
 import { CONFIG, isDemoMode } from "./config.js";
-import { normalizeDigits, formatGHS, stringId } from "./utils.js";
+import { normalizeDigits, stringId, timeGreeting, orderStatusLabel } from "./utils.js";
 import { getSupabaseClient, waitForSupabase } from "./supabase.js";
 import { areaDeliveryFee, areaDeliveryDays, getDeliveryArea } from "./delivery.js";
 
@@ -189,11 +189,12 @@ export function listOrders() {
 export function findOrder(code, phone) {
   const wanted = String(code || "").trim().toUpperCase();
   const digits = normalizeDigits(phone);
-  if (!wanted || !digits) return null;
-  return listOrders().find((order) => (
-    String(order.order_code || "").toUpperCase() === wanted &&
-    normalizeDigits(order.phone) === digits
-  )) || null;
+  if (!digits) return null;
+  const matches = listOrders().filter((order) => normalizeDigits(order.phone) === digits);
+  if (wanted) {
+    return matches.find((order) => String(order.order_code || "").toUpperCase() === wanted) || null;
+  }
+  return matches[0] || null;
 }
 
 export async function findOrderRemote(code, phone) {
@@ -263,30 +264,11 @@ export async function placeBooking(payload) {
 }
 
 export function buildOrderSummaryText(record) {
-  const lines = [
-    "Hi Velloura, here is my order number and status.",
+  return [
+    `${timeGreeting()},`,
     `Order number: ${record.order_code}`,
-    `Status: ${record.status || "Pending"}`
-  ];
-  lines.push("Items:");
-  record.items.forEach((item, index) => {
-    const sizeText = item.size ? ` / ${item.size}` : "";
-    const colorText = item.color ? ` / ${item.color}` : "";
-    lines.push(
-      `${index + 1}. ${item.name}${sizeText}${colorText} x ${item.qty} - ${formatGHS(item.price_ghs * item.qty)}`
-    );
-  });
-  lines.push(`Items total: ${formatGHS(record.items_total)}`);
-  lines.push(`Delivery fee: ${formatGHS(record.delivery_fee)}`);
-  lines.push(`Total: ${formatGHS(record.total_ghs)}`);
-  lines.push(`Customer: ${record.customer_name}`);
-  lines.push(`Phone: ${record.phone}`);
-  lines.push(`Area: ${record.area}`);
-  if (record.neighborhood) lines.push(`Neighborhood: ${record.neighborhood}`);
-  if (record.notes) lines.push(`Note: ${record.notes}`);
-  lines.push("Payment: Valmont");
-  lines.push("Please confirm my order after payment.");
-  return lines.join("\n");
+    `Status: ${orderStatusLabel(record.status)}.`
+  ].join("\n");
 }
 
 export function buildBookingSummaryText(record) {

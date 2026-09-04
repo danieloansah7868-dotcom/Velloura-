@@ -92,6 +92,42 @@ export function buildWhatsAppLink(number, message) {
   return `https://wa.me/${clean}?text=${encodeURIComponent(message)}`;
 }
 
+export function firstName(fullName) {
+  return String(fullName || "").trim().split(/\s+/)[0] || "";
+}
+
+export function timeGreeting(name) {
+  let hour = new Date().getHours();
+  try {
+    hour = Number(
+      new Intl.DateTimeFormat("en-GB", {
+        timeZone: "Africa/Accra",
+        hour: "numeric",
+        hourCycle: "h23"
+      }).format(new Date())
+    );
+  } catch (err) {
+    /* local clock */
+  }
+  let hello = "Hello";
+  if (hour >= 5 && hour < 12) hello = "Good morning";
+  else if (hour >= 12 && hour < 17) hello = "Good afternoon";
+  else hello = "Good evening";
+  const who = firstName(name);
+  return who ? `${hello} ${who}` : hello;
+}
+
+export function orderStatusLabel(status) {
+  const map = {
+    new: "Pending",
+    confirmed: "Confirmed",
+    packed: "Packed",
+    delivered: "Delivered",
+    cancelled: "Cancelled"
+  };
+  return map[status] || status || "Pending";
+}
+
 export function getConfigNotice() {
   return "";
 }

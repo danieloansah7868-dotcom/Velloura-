@@ -418,8 +418,8 @@ body.scrolled .site-header {
   overflow: hidden;
   background-color: var(--navy);
   background-image:
-    linear-gradient(180deg, rgba(20, 32, 127, .62), rgba(123, 31, 59, .45)),
-    url("../assets/cloth-blue.jpg");
+    linear-gradient(180deg, rgba(20, 32, 127, .58), rgba(123, 31, 59, .42)),
+    url("../assets/hero-clothes.jpg");
   background-size: cover;
   background-position: center;
 }
@@ -778,7 +778,7 @@ body.scrolled .site-header {
   background-color: var(--wine);
   background-image:
     linear-gradient(180deg, rgba(123, 31, 59, .72), rgba(92, 23, 48, .78)),
-    url("../assets/cloth-blue.jpg");
+    url("../assets/hero-clothes.jpg");
   background-size: cover;
   background-position: center;
   color: rgba(255,255,255,.88);
