@@ -1,6 +1,15 @@
 -- VELLOURA Supabase setup
 -- Run this file in YOUR Supabase project's SQL Editor (in the client's own account).
 -- This creates the tables, public read/insert policies and placeholder products.
+--
+-- Customer login (email + Google):
+-- 1. Authentication → Providers → Email: on. You can turn off "Confirm email" so shoppers can log in at once.
+-- 2. Authentication → Providers → Google: on. Paste a Google Cloud OAuth Client ID and Secret.
+-- 3. In Google Cloud, authorized redirect URI:
+--    https://tslvalxmctnjimrbbvsd.supabase.co/auth/v1/callback
+-- 4. Authentication → URL Configuration:
+--    Site URL = https://vellouragh.com
+--    Redirect URLs = https://vellouragh.com/**  and your preview origin /**
 
 -- ---------------------------------------------------------------
 -- Tables

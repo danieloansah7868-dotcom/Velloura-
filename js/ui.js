@@ -28,7 +28,9 @@
 
   function firstName() {
     try {
-      const session = JSON.parse(sessionStorage.getItem("velloura_customer_session") || "null");
+      const raw = localStorage.getItem("velloura_customer_session") || sessionStorage.getItem("velloura_customer_session");
+      const session = raw ? JSON.parse(raw) : null;
+      if (session && session.name) return String(session.name).trim().split(/\s+/)[0] || "";
       if (!session || !session.email) return "";
       const list = JSON.parse(localStorage.getItem("velloura_customers_v1") || "[]");
       const customer = Array.isArray(list) ? list.find((c) => c.email === session.email) : null;

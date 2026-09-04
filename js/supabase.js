@@ -23,7 +23,12 @@ export function getSupabaseClient() {
     throw new Error("Supabase JS library is not loaded. Check the CDN script in the page head.");
   }
   client = window.supabase.createClient(CONFIG.supabaseUrl, CONFIG.supabaseAnonKey, {
-    auth: { persistSession: false, autoRefreshToken: false }
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      storage: window.localStorage
+    }
   });
   return client;
 }

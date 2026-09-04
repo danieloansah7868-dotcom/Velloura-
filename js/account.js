@@ -78,8 +78,8 @@ form?.addEventListener("submit", (event) => {
   if (nameEl) nameEl.textContent = result.customer.name;
 });
 
-document.getElementById("account-logout")?.addEventListener("click", () => {
-  logoutCustomer();
+document.getElementById("account-logout")?.addEventListener("click", async () => {
+  await logoutCustomer();
   window.location.href = "index.html";
 });
 

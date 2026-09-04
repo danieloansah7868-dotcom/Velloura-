@@ -1,17 +1,21 @@
-import { currentCustomer } from "./customers.js";
+import { currentCustomer, hydrateCustomer } from "./customers.js";
 import { updateWishBadge } from "./wishlist.js";
 
-const link = document.getElementById("account-link");
-if (link) {
+function paintAccountLink() {
+  const link = document.getElementById("account-link");
+  if (!link) return;
   const customer = currentCustomer();
   if (customer) {
     link.href = "account.html";
-    link.textContent = customer.name.split(" ")[0] || "Account";
+    link.textContent = (customer.name || "").split(" ")[0] || "Account";
   } else {
     link.href = "account-login.html";
     link.textContent = "Login";
   }
 }
+
+paintAccountLink();
+hydrateCustomer().then(paintAccountLink);
 
 updateWishBadge();
 window.addEventListener("velloura:wishlist-changed", updateWishBadge);

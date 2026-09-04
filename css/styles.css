@@ -1982,6 +1982,36 @@ body.scrolled .site-header {
   font-weight: 650;
 }
 
+.btn-google {
+  background: #fff;
+  color: #222;
+  border: 1px solid var(--line-strong);
+  gap: 10px;
+}
+.btn-google:hover {
+  border-color: var(--navy);
+  background: #fff;
+  color: #222;
+}
+.btn-google svg { flex: 0 0 auto; }
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 2px 0;
+  color: var(--ink-faint);
+  font-size: .8rem;
+  font-weight: 650;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 /* ======================================================================
    Seller Center (Jumia-style admin)
    ====================================================================== */
