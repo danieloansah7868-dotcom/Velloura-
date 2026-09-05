@@ -48,7 +48,30 @@ Public shop items are fashion only (`dept: fashion`, collection `streetwear` or 
 
 The owner can edit products in Seller Center (`admin.html`) or in the Supabase `products` table.
 
-When photos arrive, add the file to `assets/products/` and set the `image` field.
+Photos: upload or replace them right in Seller Center (see *Listing photos* below). You can still point the `image` field at a file in `assets/products/` or an `https://` link if you prefer.
+
+## Listing photos
+
+In Seller Center → Products, every product form shows the listing photo with **Upload / replace photo**. Picking a photo shows a preview straight away. On save:
+
+1. The photo is resized in the browser (longest side 1600 px) so the shop stays fast on mobile data.
+2. It uploads to the public `product-photos` bucket in Supabase Storage.
+3. The product's `image` field gets the photo's public URL, so the live shop shows it at once. A replaced photo is removed from the bucket.
+
+One-time setup in your Supabase project:
+
+1. Run the latest `supabase/setup.sql` (the *Listing photos* section is enough if you ran the rest before). It adds the `product-photos` bucket, its storage policies, the `sellers` table, and product write policies.
+2. Authentication → Users → **Add user**: the owner's email and a password (auto-confirm).
+3. In the SQL Editor, give that user seller access:
+
+   ```sql
+   insert into public.sellers (user_id)
+   select id from auth.users where email = 'owner@example.com';
+   ```
+
+4. In Seller Center → Dashboard → **Live shop connection**, sign in with that email.
+
+Until the seller account is connected, product edits are refused with a message instead of saving only to the browser (the live table always wins, so a silent local save would vanish). Old price and flash sale now save to the `products` table too (`compare_at_ghs`, `flash_sale` columns from the same SQL).
 
 ## Deploying
 

@@ -4,8 +4,19 @@ import { listOrders, updateOrderStatus } from "./store.js";
 import { loadProducts, saveProduct, deleteProduct } from "./catalog.js";
 import { listCustomers } from "./customers.js";
 import { listDeliveryAreas, saveDeliveryAreas, DEFAULT_AREAS } from "./delivery.js";
+import { isDemoMode } from "./config.js";
+import {
+  validatePhotoFile,
+  uploadProductPhoto,
+  photoToDataUrl,
+  removeProductPhoto,
+  isBucketPhotoUrl
+} from "./product-photos.js";
+import { getSellerSession, signInSeller, signOutSeller } from "./seller-session.js";
 
 const allowed = requireAdmin();
+
+let sellerState = { mode: "signed-out" };
 
 const STATUSES = ["new", "confirmed", "packed", "delivered", "cancelled"];
 
@@ -207,12 +218,26 @@ function productFormHTML(product) {
           </select>
         </div>
         <div class="field field-full">
-          <label for="p-image">Image URL or path</label>
-          <input id="p-image" name="image" placeholder="assets/products/my-photo.jpg" value="${escapeHtml(p.image || "")}">
+          <label id="p-photo-label">Listing photo</label>
+          <div class="admin-image-edit">
+            <div class="admin-image-frame" id="p-image-frame">
+              <img id="p-image-preview" src="${escapeHtml(getProductImage({ image: p.image }))}" alt="Listing photo preview">
+              <span class="admin-pill wait" id="p-image-tag" hidden>New photo</span>
+            </div>
+            <div class="admin-image-side">
+              <div class="admin-image-actions">
+                <label class="btn btn-primary" for="p-file">Upload / replace photo</label>
+                <input id="p-file" name="file" type="file" accept="image/jpeg,image/png,image/webp,image/avif" hidden>
+                <button class="btn btn-ghost" type="button" id="p-photo-reset" hidden>Undo new photo</button>
+              </div>
+              <p class="admin-image-note" id="p-photo-note">JPEG, PNG, WebP or AVIF · up to 5 MB. Big photos are resized automatically.</p>
+            </div>
+          </div>
         </div>
         <div class="field field-full">
-          <label for="p-file">Or upload a photo</label>
-          <input id="p-file" name="file" type="file" accept="image/*">
+          <label for="p-image">Image link or path (optional)</label>
+          <input id="p-image" name="image" placeholder="https://… or assets/products/my-photo.jpg" value="${escapeHtml(p.image || "")}">
+          <p class="faint">Only needed when you are not uploading a file above.</p>
         </div>
       </div>
       <div id="product-form-error" class="error-text" hidden></div>
@@ -223,36 +248,107 @@ function productFormHTML(product) {
     </form>`;
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Could not read the photo."));
-    reader.readAsDataURL(file);
+function bindProductPhotoPicker(form, product) {
+  const fileInput = form.elements.namedItem("file");
+  const previewEl = document.getElementById("p-image-preview");
+  const frameEl = document.getElementById("p-image-frame");
+  const tagEl = document.getElementById("p-image-tag");
+  const noteEl = document.getElementById("p-photo-note");
+  const resetBtn = document.getElementById("p-photo-reset");
+  const urlInput = document.getElementById("p-image");
+  if (!fileInput || !previewEl || !noteEl) return { file: null, previousBucketUrl: "" };
+
+  const savedImage = product?.image || "";
+  const previousBucketUrl = isBucketPhotoUrl(savedImage) ? savedImage : "";
+  const defaultNote = noteEl.textContent;
+  const state = { file: null, objectUrl: "" };
+
+  function setNote(text, isError) {
+    noteEl.textContent = text || defaultNote;
+    noteEl.classList.toggle("error", Boolean(isError));
+  }
+
+  function refreshPreview() {
+    if (state.objectUrl) {
+      previewEl.src = state.objectUrl;
+    } else {
+      previewEl.src = getProductImage({ image: urlInput.value || savedImage });
+    }
+    tagEl.hidden = !state.file;
+    resetBtn.hidden = !state.file;
+    urlInput.disabled = Boolean(state.file);
+  }
+
+  async function chooseFile(file) {
+    const invalid = validatePhotoFile(file);
+    if (invalid) {
+      fileInput.value = "";
+      state.file = null;
+      if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+      state.objectUrl = "";
+      setNote(invalid, true);
+      refreshPreview();
+      return;
+    }
+    frameEl.classList.add("is-loading");
+    setNote("Preparing photo…");
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+      state.objectUrl = objectUrl;
+      state.file = file;
+      setNote(`${file.name || "New photo"} ready — it will be saved with this product.`);
+    } catch (err) {
+      state.file = null;
+      if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+      state.objectUrl = "";
+      setNote(err.message || "Could not read that photo. Try a different file.", true);
+    } finally {
+      frameEl.classList.remove("is-loading");
+      refreshPreview();
+    }
+  }
+
+  fileInput.addEventListener("change", () => {
+    const file = fileInput.files && fileInput.files[0];
+    if (file) chooseFile(file);
   });
+
+  resetBtn?.addEventListener("click", () => {
+    fileInput.value = "";
+    state.file = null;
+    if (state.objectUrl) URL.revokeObjectURL(state.objectUrl);
+    state.objectUrl = "";
+    setNote("");
+    refreshPreview();
+  });
+
+  urlInput?.addEventListener("input", () => {
+    if (!state.file) refreshPreview();
+  });
+
+  refreshPreview();
+  return state;
 }
 
 function bindProductForm(products) {
   const form = document.getElementById("product-form");
   if (!form) return;
+  const editingId = String(form.elements.namedItem("id")?.value || "");
+  const editing = editingId ? products.find((p) => String(p.id) === editingId) || null : null;
   document.getElementById("cancel-edit")?.addEventListener("click", () => {
     renderProducts(products);
   });
+  const photoState = bindProductPhotoPicker(form, editing);
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const errorEl = document.getElementById("product-form-error");
+    const submitBtn = form.querySelector('button[type="submit"]');
     const data = new FormData(form);
-    const file = form.elements.namedItem("file")?.files?.[0];
-    let image = String(data.get("image") || "").trim();
-    try {
-      if (file) image = await readFileAsDataUrl(file);
-    } catch (err) {
-      errorEl.hidden = false;
-      errorEl.textContent = err.message;
-      return;
-    }
+    const file = photoState.file;
     const name = String(data.get("name") || "").trim();
     const price = Number(data.get("price_ghs"));
+    errorEl.hidden = true;
     if (name.length < 2) {
       errorEl.hidden = false;
       errorEl.textContent = "Please enter a product name.";
@@ -263,21 +359,56 @@ function bindProductForm(products) {
       errorEl.textContent = "Please enter a valid price.";
       return;
     }
-    saveProduct({
-      id: String(data.get("id") || ""),
-      name,
-      dept: String(data.get("dept") || "fashion"),
-      collection: String(data.get("collection") || "").trim(),
-      description: String(data.get("description") || "").trim(),
-      price_ghs: price,
-      sizes: splitList(data.get("sizes")),
-      colors: splitList(data.get("colors")),
-      badge: String(data.get("badge") || "").trim(),
-      in_stock: String(data.get("in_stock")) !== "false",
-      image
-    });
-    boot();
-    showTab("products");
+    const invalid = validatePhotoFile(file);
+    if (invalid) {
+      errorEl.hidden = false;
+      errorEl.textContent = invalid;
+      return;
+    }
+    const busyLabel = submitBtn?.textContent;
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = file ? "Uploading & saving…" : "Saving…";
+    }
+    try {
+      let image = String(data.get("image") || "").trim();
+      if (file) {
+        image = isDemoMode
+          ? await photoToDataUrl(file)
+          : await uploadProductPhoto(file);
+      }
+      await saveProduct({
+        id: String(data.get("id") || ""),
+        name,
+        dept: String(data.get("dept") || "fashion"),
+        collection: String(data.get("collection") || "").trim(),
+        description: String(data.get("description") || "").trim(),
+        price_ghs: price,
+        compare_at_ghs: data.get("compare_at_ghs") ? Number(data.get("compare_at_ghs")) : null,
+        flash_sale: String(data.get("flash_sale")) === "true",
+        sizes: splitList(data.get("sizes")),
+        colors: splitList(data.get("colors")),
+        badge: String(data.get("badge") || "").trim(),
+        in_stock: String(data.get("in_stock")) !== "false",
+        image
+      });
+      // Best effort: remove the replaced photo from the bucket so it does
+      // not pile up as an orphan.
+      if (file && !isDemoMode && photoState.previousBucketUrl && photoState.previousBucketUrl !== image) {
+        removeProductPhoto(photoState.previousBucketUrl).catch(() => {});
+      }
+      boot();
+      showTab("products");
+    } catch (err) {
+      errorEl.hidden = false;
+      errorEl.textContent = err.message || "Could not save the product. Please try again.";
+      errorEl.scrollIntoView({ behavior: "smooth", block: "center" });
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = busyLabel || "Save";
+      }
+    }
   });
 }
 
@@ -307,10 +438,112 @@ function renderHome(orders, products) {
         <strong>${inStock}</strong>
       </article>
     </div>
+    <div class="admin-card" id="seller-connect"></div>
     <div class="admin-card">
       <h2>Recent orders</h2>
       ${ordersTable(orders.slice(0, 6))}
     </div>`;
+  renderSellerConnection();
+}
+
+function sellerConnectionPill() {
+  if (sellerState.mode === "demo") return "Demo";
+  if (sellerState.mode === "signed-in") return sellerState.isSeller ? "Live" : "No access";
+  return "Not connected";
+}
+
+function sellerConnectionText() {
+  if (sellerState.mode === "demo") {
+    return "Demo mode — Supabase is not connected. Product changes stay in this browser.";
+  }
+  if (sellerState.mode === "signed-in" && sellerState.isSeller) {
+    return "Changes and photos save to the live shop.";
+  }
+  if (sellerState.mode === "signed-in") {
+    return "This account has no seller access yet.";
+  }
+  return "Not connected — connect a seller account to save changes.";
+}
+
+function renderSellerConnection() {
+  const box = document.getElementById("seller-connect");
+  if (!box) return;
+
+  if (sellerState.mode === "demo") {
+    box.innerHTML = `
+      <div class="admin-card-head">
+        <h2>Live shop connection</h2>
+        <span class="admin-pill out">Demo</span>
+      </div>
+      <p class="muted">Supabase is not connected, so products and photos are saved in this browser only. Add the Supabase URL and key in <code>js/config.js</code> to go live.</p>`;
+    return;
+  }
+
+  if (sellerState.mode === "signed-in") {
+    const ok = sellerState.isSeller !== false;
+    box.innerHTML = `
+      <div class="admin-card-head">
+        <h2>Live shop connection</h2>
+        <span class="admin-pill ${ok ? "in" : "wait"}">${ok ? "Connected" : "No seller access"}</span>
+      </div>
+      <p class="muted">Signed in as <strong>${escapeHtml(sellerState.email)}</strong>. ${
+        ok
+          ? "Product changes and photos save to the live shop."
+          : "This account cannot edit products yet. Add it to the sellers table in Supabase — see “Listing photos” in the README."
+      }</p>
+      <div class="admin-form-actions">
+        <button class="btn btn-ghost" type="button" id="seller-signout">Disconnect</button>
+      </div>`;
+    return;
+  }
+
+  box.innerHTML = `
+    <div class="admin-card-head">
+      <h2>Live shop connection</h2>
+      <span class="admin-pill out">Not connected</span>
+    </div>
+    <p class="muted">Sign in with your VELLOURA seller account to save product changes and photos to the live shop.</p>
+    <form id="seller-signin-form" class="admin-signin-form">
+      <div class="field">
+        <label for="seller-email">Email</label>
+        <input id="seller-email" type="email" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="seller-password">Password</label>
+        <input id="seller-password" type="password" autocomplete="current-password" required>
+      </div>
+      <div id="seller-signin-error" class="error-text" hidden></div>
+      <div class="admin-form-actions">
+        <button class="btn btn-primary" type="submit">Connect</button>
+      </div>
+    </form>
+    <p class="faint">Create this account once in Supabase → Authentication → Users → “Add user”, then run the sellers insert from the README (“Listing photos”).</p>`;
+}
+
+async function handleSellerSignIn(form) {
+  const errorEl = document.getElementById("seller-signin-error");
+  const submitBtn = form.querySelector('button[type="submit"]');
+  const email = form.elements.namedItem("seller-email")?.value || "";
+  const password = form.elements.namedItem("seller-password")?.value || "";
+  if (errorEl) errorEl.hidden = true;
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Connecting…";
+  }
+  try {
+    sellerState = await signInSeller(email, password);
+    boot();
+  } catch (err) {
+    if (errorEl) {
+      errorEl.hidden = false;
+      errorEl.textContent = err.message || "Could not sign in. Please try again.";
+    }
+  } finally {
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.textContent = "Connect";
+    }
+  }
 }
 
 function ordersTable(orders) {
@@ -433,7 +666,9 @@ function renderProducts(products, editingId) {
     <div class="admin-card">
       <div class="admin-card-head">
         <h2>${editing ? "Edit product" : "Add a product"}</h2>
+        <span class="admin-pill ${sellerState.mode === "signed-in" && sellerState.isSeller ? "in" : "wait"}">${sellerConnectionPill()}</span>
       </div>
+      <p class="faint">${sellerConnectionText()}</p>
       ${productFormHTML(editing)}
     </div>
     <div class="admin-card">
@@ -552,7 +787,7 @@ function renderCustomers() {
 }
 
 function bindAdminClicks() {
-  document.body.addEventListener("click", (event) => {
+  document.body.addEventListener("click", async (event) => {
     const filterBtn = event.target.closest("[data-order-filter]");
     if (filterBtn) {
       orderFilter = filterBtn.getAttribute("data-order-filter") || "all";
@@ -566,6 +801,13 @@ function bindAdminClicks() {
       renderOrders(listOrders());
       const card = document.getElementById(`order-${openOrderCode}`);
       if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    const signOutBtn = event.target.closest("#seller-signout");
+    if (signOutBtn) {
+      await signOutSeller();
+      sellerState = await getSellerSession();
+      boot();
       return;
     }
     const editBtn = event.target.closest("[data-edit-product]");
@@ -582,10 +824,24 @@ function bindAdminClicks() {
       const id = deleteBtn.getAttribute("data-delete-product");
       const ok = window.confirm("Delete this product from the shop?");
       if (!ok) return;
-      deleteProduct(id);
+      try {
+        await deleteProduct(id);
+      } catch (err) {
+        window.alert(err.message || "Could not delete the product. Please try again.");
+        return;
+      }
       boot();
       showTab("products");
     }
+  });
+}
+
+function bindSellerSignIn() {
+  document.body.addEventListener("submit", (event) => {
+    const form = event.target.closest("#seller-signin-form");
+    if (!form) return;
+    event.preventDefault();
+    handleSellerSignIn(form);
   });
 }
 
@@ -601,6 +857,12 @@ function bindStatusChanges() {
 let bound = false;
 
 async function boot() {
+  try {
+    sellerState = await getSellerSession();
+  } catch (err) {
+    console.error(err);
+    sellerState = { mode: "signed-out" };
+  }
   const orders = listOrders();
   let products = [];
   try {
@@ -618,6 +880,7 @@ async function boot() {
     bound = true;
     bindStatusChanges();
     bindAdminClicks();
+    bindSellerSignIn();
   }
 }
 

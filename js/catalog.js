@@ -1,6 +1,10 @@
 // Product catalog.
 // - When Supabase is configured, products are read from the public.products table.
 // - When Supabase is not configured (demo mode), a matching local placeholder set is used.
+// - Product changes made in Seller Center are written back to Supabase when the
+//   owner is signed in with a seller account. Without that connection the live
+//   table always wins, so edits are refused with a clear message instead of
+//   quietly vanishing.
 
 import { isDemoMode } from "./config.js";
 import { stringId } from "./utils.js";
@@ -152,6 +156,8 @@ function normalizeProduct(row) {
     name: row.name,
     description: row.description || "",
     price_ghs: Number(row.price_ghs),
+    compare_at_ghs: row.compare_at_ghs == null ? null : Number(row.compare_at_ghs),
+    flash_sale: row.flash_sale === true,
     sizes,
     colors,
     badge: row.badge || null,
@@ -224,23 +230,136 @@ export async function loadProducts({ force = false } = {}) {
   return base.map(cloneProduct);
 }
 
-export function saveProduct(input) {
+// ---------------------------------------------------------------
+// Saving products
+// ---------------------------------------------------------------
+
+function sellerError(code, message) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
+const SELLER_SIGNIN_MESSAGE =
+  "Connect your seller account first — Seller Center → Dashboard → Live shop connection.";
+const SELLER_ACCESS_MESSAGE =
+  "This account cannot edit products yet. Add it to the sellers table in Supabase — see “Listing photos” in the README.";
+
+async function requireSellerClient() {
+  const ready = await waitForSupabase();
+  if (!ready) throw new Error("Supabase is not connected. Check your internet and try again.");
+  const sb = getSupabaseClient();
+  const { data } = await sb.auth.getSession();
+  if (!data?.session?.user) throw sellerError("seller_signin", SELLER_SIGNIN_MESSAGE);
+  return sb;
+}
+
+function isRemoteId(id) {
+  return /^\d+$/.test(stringId(id));
+}
+
+function isRlsError(error) {
+  return /row-level security|42501/i.test(`${error?.message || ""} ${error?.code || ""}`);
+}
+
+function isMissingColumn(error) {
+  return /column|schema cache|PGRST204|42703/i.test(`${error?.message || ""} ${error?.code || ""}`);
+}
+
+function rowPayload(product, { includeExtras = true } = {}) {
+  const payload = {
+    dept: product.dept || "fashion",
+    collection: product.collection || null,
+    name: product.name,
+    description: product.description || "",
+    price_ghs: Number(product.price_ghs || 0),
+    sizes: product.sizes || [],
+    colors: product.colors || [],
+    badge: product.badge || null,
+    in_stock: product.in_stock !== false,
+    sort_order: Number(product.sort_order || 0),
+    image: product.image || null
+  };
+  if (includeExtras) {
+    // These columns are added by the latest supabase/setup.sql. Older
+    // projects may not have them yet, so saves retry without them.
+    payload.compare_at_ghs = product.compare_at_ghs == null ? null : Number(product.compare_at_ghs);
+    payload.flash_sale = product.flash_sale === true;
+  }
+  return payload;
+}
+
+function mapWriteError(error) {
+  if (isRlsError(error)) return sellerError("seller_access", SELLER_ACCESS_MESSAGE);
+  if (/failed to fetch|network/i.test(error?.message || "")) {
+    return new Error("Could not reach Supabase. Check your internet connection and try again.");
+  }
+  return new Error(error?.message || "Could not save the product. Please try again.");
+}
+
+function mergeIntoStore(product) {
+  const list = readStore() || [];
+  const idx = list.findIndex((p) => stringId(p.id) === stringId(product.id));
+  if (idx >= 0) list[idx] = { ...list[idx], ...product };
+  else list.push(product);
+  writeStore(list);
+}
+
+export async function saveProduct(input) {
   const products = readStore() || getLocalProducts();
   const product = normalizeProduct({
     ...input,
     id: input.id || `p-${Date.now()}`,
     sort_order: input.sort_order || products.length + 1
   });
-  const idx = products.findIndex((p) => stringId(p.id) === stringId(product.id));
-  if (idx >= 0) products[idx] = { ...products[idx], ...product };
-  else products.push(product);
-  writeStore(products);
-  return cloneProduct(product);
+
+  // Demo mode (no Supabase): products live in this browser, as before.
+  if (isDemoMode) {
+    mergeIntoStore(product);
+    return cloneProduct(product);
+  }
+
+  // Live mode: write to Supabase so the shop updates for everyone.
+  const sb = await requireSellerClient();
+  const id = stringId(product.id);
+
+  if (isRemoteId(id)) {
+    let { data, error } = await sb.from("products").update(rowPayload(product)).eq("id", Number(id)).select();
+    if (error && isMissingColumn(error)) {
+      ({ data, error } = await sb.from("products").update(rowPayload(product, { includeExtras: false })).eq("id", Number(id)).select());
+    }
+    if (error) throw mapWriteError(error);
+    const saved = Array.isArray(data) ? data[0] : null;
+    if (!saved) {
+      throw new Error("That product is no longer in the live shop. Refresh the page and try again.");
+    }
+    const savedProduct = normalizeProduct(saved);
+    mergeIntoStore(savedProduct);
+    return cloneProduct(savedProduct);
+  }
+
+  let { data, error } = await sb.from("products").insert(rowPayload(product)).select();
+  if (error && isMissingColumn(error)) {
+    ({ data, error } = await sb.from("products").insert(rowPayload(product, { includeExtras: false })).select());
+  }
+  if (error) throw mapWriteError(error);
+  const saved = Array.isArray(data) ? data[0] : null;
+  const savedProduct = saved ? normalizeProduct(saved) : product;
+  mergeIntoStore(savedProduct);
+  return cloneProduct(savedProduct);
 }
 
-export function deleteProduct(id) {
+export async function deleteProduct(idValue) {
+  const id = stringId(idValue);
+
+  if (!isDemoMode && isRemoteId(id)) {
+    const sb = await requireSellerClient();
+    const { error } = await sb.from("products").delete().eq("id", Number(id));
+    if (error) throw mapWriteError(error);
+  }
+
   const products = (readStore() || getLocalProducts())
-    .filter((p) => stringId(p.id) !== stringId(id));
+    .filter((p) => stringId(p.id) !== id);
   writeStore(products);
   return products.map(cloneProduct);
 }

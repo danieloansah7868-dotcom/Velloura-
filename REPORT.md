@@ -34,3 +34,7 @@ Checkout shows **Pay**, with Valmont underneath (`https://valmontpay.app`). No p
 - Only the publishable anon Supabase key belongs in the site (currently empty = demo mode).
 - No Valmont, Paystack or service-role secrets.
 - Seller Center password `velloura` is a front door only — change it before launch.
+
+## Phase 2 — listing photos
+
+Seller Center can now upload / replace a listing photo with a live preview. Photos are resized in the browser and stored in the public `product-photos` Supabase Storage bucket; the product keeps the public URL, so the live shop updates at once. Product saves and deletes now write back to Supabase when the owner connects a seller account (Dashboard → Live shop connection). Only users listed in the `sellers` table can edit products — run the latest `supabase/setup.sql` and follow "Listing photos" in the README to switch this on.

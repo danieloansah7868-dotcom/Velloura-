@@ -151,3 +151,120 @@ values
   ('hair', null, '4x4 Lace Closure (16 inch)', 'A 4x4 lace closure with natural wavy hair for a soft finish.', 280, array['14 inch','16 inch','18 inch'], array['Natural Black'], null, true, 22, 'assets/products/hair-4x4-closure.jpg'),
   ('wigs', null, 'Body Wave Lace Front Wig (24 inch)', 'A long body wave lace front wig with a natural flow.', 780, array['18 inch','20 inch','22 inch','24 inch'], array['Natural Black','Dark Brown'], null, true, 23, 'assets/products/wig-body-wave.jpg'),
   ('wigs', null, 'Highlighted Bob Wig', 'A chic bob wig with soft honey highlights for a fresh finish.', 550, array['10 inch','12 inch'], array['Honey Brown','Jet Black'], null, true, 24, 'assets/products/wig-highlight-bob.jpg');
+
+-- ---------------------------------------------------------------
+-- LISTING PHOTOS (Seller Center)
+-- Added when image editing went live. Run this section on its own if
+-- you already ran everything above.
+--
+-- What it does:
+--   1. Adds old-price / flash-sale columns the product form saves.
+--   2. Creates the public "sellers" table. Only users listed there can
+--      edit products — regular customer accounts cannot.
+--   3. Lets sellers insert / update / delete products (public read
+--      stays open for the shop itself).
+--   4. Creates the public "product-photos" storage bucket and lets
+--      sellers upload into it.
+--
+-- After running this, do these two steps once:
+--   A. Authentication → Users → "Add user" → the owner's email and a
+--      password (tick "Auto Confirm User").
+--   B. Give that user seller access (replace the email):
+--        insert into public.sellers (user_id)
+--        select id from auth.users where email = 'owner@example.com';
+-- ---------------------------------------------------------------
+
+-- 1. Extra product columns the Seller Center form saves.
+alter table public.products add column if not exists compare_at_ghs numeric;
+alter table public.products add column if not exists flash_sale boolean not null default false;
+
+-- 2. Sellers table. Manage entries in the SQL Editor only — the site
+--    can read its own row, but nobody can add themselves via the API.
+create table if not exists public.sellers (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  created_at timestamptz not null default now()
+);
+
+alter table public.sellers enable row level security;
+
+drop policy if exists "sellers can read their own row" on public.sellers;
+create policy "sellers can read their own row" on public.sellers
+  for select to authenticated
+  using (auth.uid() = user_id);
+
+-- 3. Seller check used by the product and storage policies below.
+create or replace function public.is_seller()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1 from public.sellers s where s.user_id = auth.uid()
+  );
+$$;
+
+revoke all on function public.is_seller() from public, anon;
+grant execute on function public.is_seller() to authenticated;
+
+-- Product read for signed-in users (the anon policy above covers the
+-- public shop; customer and seller accounts need their own).
+drop policy if exists "signed in can read products" on public.products;
+create policy "signed in can read products" on public.products
+  for select to authenticated
+  using (true);
+
+-- Sellers can add, change and remove products.
+drop policy if exists "sellers can insert products" on public.products;
+create policy "sellers can insert products" on public.products
+  for insert to authenticated
+  with check (public.is_seller());
+
+drop policy if exists "sellers can update products" on public.products;
+create policy "sellers can update products" on public.products
+  for update to authenticated
+  using (public.is_seller())
+  with check (public.is_seller());
+
+drop policy if exists "sellers can delete products" on public.products;
+create policy "sellers can delete products" on public.products
+  for delete to authenticated
+  using (public.is_seller());
+
+-- 4. Public bucket for listing photos. Visitors read photos through
+--    the public URL; only sellers can upload, replace or delete files.
+insert into storage.buckets (id, name, public)
+values ('product-photos', 'product-photos', true)
+on conflict (id) do update set public = true;
+
+do $$
+begin
+  update storage.buckets
+     set file_size_limit = 5242880,
+         allowed_mime_types = array['image/jpeg','image/png','image/webp','image/avif']
+   where id = 'product-photos';
+exception when others then
+  raise notice 'Could not set bucket size/mime limits: %', sqlerrm;
+end $$;
+
+drop policy if exists "anyone can view product photos" on storage.objects;
+create policy "anyone can view product photos" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id = 'product-photos');
+
+drop policy if exists "sellers can upload product photos" on storage.objects;
+create policy "sellers can upload product photos" on storage.objects
+  for insert to authenticated
+  with check (bucket_id = 'product-photos' and public.is_seller());
+
+drop policy if exists "sellers can update product photos" on storage.objects;
+create policy "sellers can update product photos" on storage.objects
+  for update to authenticated
+  using (bucket_id = 'product-photos' and public.is_seller())
+  with check (bucket_id = 'product-photos' and public.is_seller());
+
+drop policy if exists "sellers can delete product photos" on storage.objects;
+create policy "sellers can delete product photos" on storage.objects
+  for delete to authenticated
+  using (bucket_id = 'product-photos' and public.is_seller());
