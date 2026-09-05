@@ -34,3 +34,22 @@ Checkout shows **Pay**, with Valmont underneath (`https://valmontpay.app`). No p
 - Only the publishable anon Supabase key belongs in the site (currently empty = demo mode).
 - No Valmont, Paystack or service-role secrets.
 - Seller Center password `velloura` is a front door only — change it before launch.
+
+## Update — listing photos (September 2026)
+
+Seller Center can now fully manage listing photos, and product pages show them as a gallery.
+
+### What changed
+
+- **Photo manager** (Seller Center → Products): add up to 6 photos per listing, crop/straighten with a built-in editor (drag, zoom, rotate, 3:4 / 1:1 / 4:5 / original frames), reorder, pick the cover, remove. Photos are compressed in the browser before upload (long edge 1400px, ~150–400 KB).
+- **Hosting**: uploads go to a public `product-images` Supabase Storage bucket when Supabase is connected. Demo mode keeps compressed data URLs in the browser, as before.
+- **Product pages**: main photo plus tappable thumbnails (`js/product.js`), consistent 3:4 framing, lazy-loaded thumbs.
+- **Persistence fix**: product edits/deletes in Seller Center now sync to Supabase through key-gated `seller_upsert_product` / `seller_delete_product` functions. Before this, edits in Supabase mode were browser-only and got overwritten on the next visit.
+- **Bug fix**: "Old price" and "Flash sale" fields were collected by the form but silently dropped on save; they are now stored (`compare_at_ghs`, `flash_sale`) and sale prices/badges render on cards.
+
+### Owner action items for this update
+
+1. Re-run `supabase/setup.sql` in the Supabase SQL Editor (safe to re-run — it only adds what is missing).
+2. Rotate the seller key: set a new value in `js/config.js` (`sellerKey`) AND `update public.seller_auth set seller_key = '...';` — same value in both.
+3. The Storage write policies accept image uploads from anyone holding the publishable key (the same front-door trust level as the Seller Center password). Tighten them when real admin logins exist.
+4. Old photos in `assets/products/` still work as listing images; nothing needs re-uploading.

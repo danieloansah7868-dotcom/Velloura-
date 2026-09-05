@@ -2,7 +2,7 @@
 
 import { getProduct, getProductBySlug, loadProducts, relatedProducts } from "./catalog.js";
 import { addToCart } from "./store.js";
-import { formatGHS, escapeHtml, getProductImage, getQueryParam, discountPercent } from "./utils.js";
+import { formatGHS, escapeHtml, getProductImages, getQueryParam, discountPercent } from "./utils.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
 import { showNotice, hideNotice, renderProductGrid } from "./render.js";
 import { isSaved, toggleSaved, updateWishBadge } from "./wishlist.js";
@@ -77,9 +77,17 @@ function renderProduct() {
          <button class="btn-chip" id="qty-plus" aria-label="Increase quantity">+</button>
        </div>`;
 
+  const photos = getProductImages(p);
   detail.innerHTML = `
-    <div class="product-media">
-      <img src="${escapeHtml(getProductImage(p))}" alt="${escapeHtml(p.name)}">
+    <div class="product-media product-gallery">
+      <img id="pdp-main-photo" src="${escapeHtml(photos[0])}" alt="${escapeHtml(p.name)}" decoding="async">
+      ${photos.length > 1 ? `
+        <div class="product-thumbs" aria-label="Choose a photo">
+          ${photos.map((src, i) => `
+            <button type="button" class="thumb ${i === 0 ? "active" : ""}" data-full="${escapeHtml(src)}" aria-label="Show photo ${i + 1}" ${i === 0 ? `aria-current="true"` : ""}>
+              <img src="${escapeHtml(src)}" alt="" loading="lazy" decoding="async">
+            </button>`).join("")}
+        </div>` : ""}
     </div>
     <div class="product-info">
       ${deptLabel}
@@ -133,6 +141,21 @@ function renderProduct() {
     if (!btn) return;
     selectedColor = btn.getAttribute("data-color") || "";
     colorGroup.querySelectorAll(".choice").forEach((el) => el.classList.toggle("selected", el === btn));
+  });
+
+  const thumbs = detail.querySelector(".product-thumbs");
+  if (thumbs) thumbs.addEventListener("click", (event) => {
+    const btn = event.target.closest(".thumb");
+    if (!btn) return;
+    const main = document.getElementById("pdp-main-photo");
+    const full = btn.getAttribute("data-full");
+    if (main && full) main.src = full;
+    thumbs.querySelectorAll(".thumb").forEach((el) => {
+      const on = el === btn;
+      el.classList.toggle("active", on);
+      if (on) el.setAttribute("aria-current", "true");
+      else el.removeAttribute("aria-current");
+    });
   });
 
   if (sizes.length) {

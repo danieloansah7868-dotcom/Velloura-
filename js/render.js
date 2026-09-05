@@ -39,7 +39,7 @@ export function productCardHTML(product) {
       </button>
       <a class="product-card-link" href="${productPageHref(product)}" aria-label="View ${escapeHtml(product.name)}">
         <div class="product-media-wrap">
-          <img src="${escapeHtml(getProductImage(product))}" alt="${escapeHtml(product.name)}" loading="lazy">
+          <img src="${escapeHtml(getProductImage(product))}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async">
           ${badge}
         </div>
         <div class="product-card-body">

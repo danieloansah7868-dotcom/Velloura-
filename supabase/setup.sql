@@ -28,7 +28,10 @@ create table if not exists public.products (
   badge text,
   in_stock boolean not null default true,
   sort_order int default 0,
-  image text
+  image text,
+  images text[] not null default '{}',
+  compare_at_ghs numeric,
+  flash_sale boolean not null default false
 );
 
 -- Allow 'wigs' on projects created from an older version.
@@ -151,3 +154,189 @@ values
   ('hair', null, '4x4 Lace Closure (16 inch)', 'A 4x4 lace closure with natural wavy hair for a soft finish.', 280, array['14 inch','16 inch','18 inch'], array['Natural Black'], null, true, 22, 'assets/products/hair-4x4-closure.jpg'),
   ('wigs', null, 'Body Wave Lace Front Wig (24 inch)', 'A long body wave lace front wig with a natural flow.', 780, array['18 inch','20 inch','22 inch','24 inch'], array['Natural Black','Dark Brown'], null, true, 23, 'assets/products/wig-body-wave.jpg'),
   ('wigs', null, 'Highlighted Bob Wig', 'A chic bob wig with soft honey highlights for a fresh finish.', 550, array['10 inch','12 inch'], array['Honey Brown','Jet Black'], null, true, 24, 'assets/products/wig-highlight-bob.jpg');
+
+-- ---------------------------------------------------------------
+-- Listing photos + Seller Center product editing
+-- Added for the photo manager. Everything below is SAFE TO RUN
+-- AGAIN on an existing project — it only adds what is missing.
+-- ---------------------------------------------------------------
+
+-- 1) Columns the photo manager and sale prices need.
+alter table public.products add column if not exists images text[] not null default '{}';
+alter table public.products add column if not exists compare_at_ghs numeric;
+alter table public.products add column if not exists flash_sale boolean not null default false;
+
+-- Seed the gallery from the old single-image column where needed.
+update public.products
+   set images = array[image]
+ where coalesce(array_length(images, 1), 0) = 0
+   and image is not null
+   and image <> '';
+
+-- 2) Public Storage bucket for uploaded listing photos.
+insert into storage.buckets (id, name, public)
+values ('product-images', 'product-images', true)
+on conflict (id) do update set public = true;
+
+-- Read is public (the shop shows these photos).
+drop policy if exists "product images are public" on storage.objects;
+create policy "product images are public" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id = 'product-images');
+
+-- Write is open to anyone holding the publishable key, restricted to
+-- image files under products/. This is the same front-door trust level
+-- as the Seller Center password. When real admin logins exist, tighten
+-- these three policies to that role.
+drop policy if exists "seller can upload product images" on storage.objects;
+create policy "seller can upload product images" on storage.objects
+  for insert to anon, authenticated
+  with check (
+    bucket_id = 'product-images'
+    and name like 'products/%'
+    and (content_type is null or content_type like 'image/%')
+  );
+
+drop policy if exists "seller can replace product images" on storage.objects;
+create policy "seller can replace product images" on storage.objects
+  for update to anon, authenticated
+  using (bucket_id = 'product-images' and name like 'products/%')
+  with check (bucket_id = 'product-images' and name like 'products/%');
+
+drop policy if exists "seller can delete product images" on storage.objects;
+create policy "seller can delete product images" on storage.objects
+  for delete to anon, authenticated
+  using (bucket_id = 'product-images' and name like 'products/%');
+
+-- 3) Gated product writes. The Seller Center password only guards a page,
+-- so product changes go through functions that check a shared seller key.
+-- The key lives in this private table AND in js/config.js (sellerKey).
+-- CHANGE BOTH TOGETHER BEFORE LAUNCH. To rotate:
+--   update public.seller_auth set seller_key = 'a-long-new-secret';
+-- then paste the same value into js/config.js.
+create table if not exists public.seller_auth (
+  id int primary key default 1 check (id = 1),
+  seller_key text not null
+);
+
+insert into public.seller_auth (id, seller_key)
+values (1, 'velloura-seller-2026-change-me')
+on conflict (id) do nothing;
+
+revoke all on public.seller_auth from public, anon, authenticated;
+
+-- Helper: safely read a text[] out of the JSON payload.
+create or replace function public.seller_text_array(p jsonb, k text)
+returns text[]
+language sql
+immutable
+set search_path = public
+as $$
+  select case
+    when jsonb_typeof(coalesce(p -> k, 'null'::jsonb)) = 'array'
+      then coalesce(
+        (select array_agg(elem)
+           from jsonb_array_elements_text(p -> k) as elem
+          where elem is not null and elem <> ''),
+        '{}'::text[])
+    else '{}'::text[]
+  end;
+$$;
+
+revoke all on function public.seller_text_array(jsonb, text) from public;
+
+-- Save (insert or update) one product. Returns the saved row as JSON so
+-- the browser learns the real id of a newly inserted product.
+create or replace function public.seller_upsert_product(p_key text, p_product jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id bigint := null;
+  v_row public.products;
+begin
+  if not exists (select 1 from public.seller_auth where seller_key = p_key) then
+    raise exception 'Invalid seller key.' using errcode = '42501';
+  end if;
+
+  if jsonb_typeof(coalesce(p_product -> 'id', 'null'::jsonb)) <> 'null' then
+    begin
+      v_id := (p_product ->> 'id')::bigint;
+    exception when others then
+      v_id := null; -- browser-only ids like 'p-1712345' are not table rows
+    end;
+  end if;
+
+  if v_id is not null and exists (select 1 from public.products where id = v_id) then
+    update public.products set
+      dept           = coalesce(nullif(p_product ->> 'dept', ''), dept),
+      collection     = nullif(p_product ->> 'collection', ''),
+      name           = coalesce(nullif(p_product ->> 'name', ''), name),
+      description    = p_product ->> 'description',
+      price_ghs      = coalesce(nullif(p_product ->> 'price_ghs', '')::numeric, price_ghs),
+      compare_at_ghs = nullif(p_product ->> 'compare_at_ghs', '')::numeric,
+      flash_sale     = coalesce((p_product ->> 'flash_sale')::boolean, false),
+      sizes          = public.seller_text_array(p_product, 'sizes'),
+      colors         = public.seller_text_array(p_product, 'colors'),
+      badge          = nullif(p_product ->> 'badge', ''),
+      in_stock       = coalesce((p_product ->> 'in_stock')::boolean, true),
+      sort_order     = coalesce(nullif(p_product ->> 'sort_order', '')::int, sort_order),
+      image          = nullif(p_product ->> 'image', ''),
+      images         = public.seller_text_array(p_product, 'images')
+    where id = v_id
+    returning * into v_row;
+  else
+    insert into public.products
+      (dept, collection, name, description, price_ghs, compare_at_ghs, flash_sale,
+       sizes, colors, badge, in_stock, sort_order, image, images)
+    values
+      (coalesce(nullif(p_product ->> 'dept', ''), 'fashion'),
+       nullif(p_product ->> 'collection', ''),
+       coalesce(nullif(p_product ->> 'name', ''), 'Untitled'),
+       p_product ->> 'description',
+       coalesce(nullif(p_product ->> 'price_ghs', '')::numeric, 0),
+       nullif(p_product ->> 'compare_at_ghs', '')::numeric,
+       coalesce((p_product ->> 'flash_sale')::boolean, false),
+       public.seller_text_array(p_product, 'sizes'),
+       public.seller_text_array(p_product, 'colors'),
+       nullif(p_product ->> 'badge', ''),
+       coalesce((p_product ->> 'in_stock')::boolean, true),
+       coalesce(nullif(p_product ->> 'sort_order', '')::int, 0),
+       nullif(p_product ->> 'image', ''),
+       public.seller_text_array(p_product, 'images'))
+    returning * into v_row;
+  end if;
+
+  return to_jsonb(v_row);
+end;
+$$;
+
+revoke all on function public.seller_upsert_product(text, jsonb) from public;
+grant execute on function public.seller_upsert_product(text, jsonb) to anon, authenticated;
+
+-- Delete one product. Browser-only ids (non-numeric) simply return false —
+-- there is nothing in the table to delete.
+create or replace function public.seller_delete_product(p_key text, p_id text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from public.seller_auth where seller_key = p_key) then
+    raise exception 'Invalid seller key.' using errcode = '42501';
+  end if;
+
+  if p_id ~ '^[0-9]+$' then
+    delete from public.products where id = p_id::bigint;
+    return true;
+  end if;
+
+  return false;
+end;
+$$;
+
+revoke all on function public.seller_delete_product(text, text) from public;
+grant execute on function public.seller_delete_product(text, text) to anon, authenticated;
