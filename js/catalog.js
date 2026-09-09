@@ -3897,7 +3897,7 @@ const LOCAL_PRODUCTS = [
 ];
 
 let productsCache = null;
-const PRODUCTS_KEY = "velloura_products_v4";
+const PRODUCTS_KEY = "velloura_products_v5";
 
 function readStore() {
   try {
@@ -3979,6 +3979,18 @@ function cloneProduct(p) {
   };
 }
 
+function imagePaths(product) {
+  return [product.image, ...(product.images || [])]
+    .map((src) => String(src || "").trim())
+    .filter(Boolean);
+}
+
+function shouldPreferLocalProducts(stored, local) {
+  if (!stored || stored.length < local.length) return true;
+  const localImages = new Set(local.flatMap(imagePaths));
+  return stored.some((product) => imagePaths(product).some((src) => !localImages.has(src)));
+}
+
 export function getLocalProducts() {
   return LOCAL_PRODUCTS.map(normalizeProduct);
 }
@@ -4011,8 +4023,10 @@ export async function loadProducts({ force = false } = {}) {
       console.error(err);
     }
     const stored = readStore();
-    if (stored && stored.length) return stored.map(cloneProduct);
     const local = getLocalProducts();
+    if (stored && stored.length && !shouldPreferLocalProducts(stored, local)) {
+      return stored.map(cloneProduct);
+    }
     writeStore(local);
     return local.map(cloneProduct);
   }
