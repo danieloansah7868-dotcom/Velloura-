@@ -80,7 +80,9 @@ function renderProduct() {
   const photos = getProductImages(p);
   detail.innerHTML = `
     <div class="product-media product-gallery">
-      <img id="pdp-main-photo" src="${escapeHtml(photos[0])}" alt="${escapeHtml(p.name)}" decoding="async">
+      ${photos.length
+        ? `<img id="pdp-main-photo" src="${escapeHtml(photos[0])}" alt="${escapeHtml(p.name)}" decoding="async">`
+        : `<div class="media-fallback media-fallback-pdp" role="img" aria-label="Photo coming soon"><span>VELLOURA</span><small>photo coming soon</small></div>`}
       ${photos.length > 1 ? `
         <div class="product-thumbs" aria-label="Choose a photo">
           ${photos.map((src, i) => `

@@ -196,7 +196,7 @@ LANDINGS = {
         "h1": "Affordable clothes for women in Accra",
         "description": "Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with MoMo or card.",
         "keywords": "affordable clothes Accra, dress, skirt, trousers, top, tee, blouse, streetwear, modest, Ghana",
-        "og_image": "assets/products/fashion-ivory-wrap-dress.jpg",
+        "og_image": "assets/hero-clothes.jpg",
         "also": [
             ("Dresses", "fashion.html"),
             ("Streetwear", "streetwear.html"),
@@ -223,7 +223,7 @@ LANDINGS = {
         "h1": "Streetwear for women in Accra",
         "description": "Shop a crop set, oversized tee, wide-leg trousers and a pleated skirt. Everyday streetwear from Accra. Pay with MoMo or card.",
         "keywords": "streetwear, crop, joggers, tee, trousers, skirt, casual, Accra, Ghana",
-        "og_image": "assets/products/fashion-crop-set.jpg",
+        "og_image": "assets/hero-clothes.jpg",
         "also": [
             ("Crop set", "streetwear.html"),
             ("Trousers", "streetwear.html"),
@@ -250,7 +250,7 @@ LANDINGS = {
         "h1": "Modest wear in Accra",
         "description": "Shop a satin maxi dress, a long-line modest set and an ivory wrap dress in Accra. Pay with MoMo or card.",
         "keywords": "modest, maxi, long dress, wrap dress, modest set, Accra, Ghana",
-        "og_image": "assets/products/fashion-modest-maxi.jpg",
+        "og_image": "assets/hero-atelier.jpg",
         "also": [
             ("Maxi dress", "modest.html"),
             ("Wrap dress", "modest.html"),
@@ -615,7 +615,7 @@ def product_html(product: dict, siblings: list[dict]) -> str:
             "@type": "Product",
             "name": product["name"],
             "description": product.get("description") or product["name"],
-            "image": abs_url(product["image"]),
+            "image": abs_url(product["image"]) if product.get("image") else abs_url("assets/logo.png"),
             "sku": str(product["id"]),
             "brand": {"@type": "Brand", "name": "VELLOURA"},
             "offers": {
@@ -652,7 +652,7 @@ def product_html(product: dict, siblings: list[dict]) -> str:
 
     <div id="product-detail" class="product-detail">
       <div class="product-media">
-        <img src="{prefix}{h(product["image"])}" alt="{h(product["name"])}">
+        {f'<img src="{prefix}{h(product["image"])}" alt="{h(product["name"])}" decoding="async">' if product.get("image") else '<div class="media-fallback media-fallback-pdp" role="img" aria-label="Photo coming soon"><span>VELLOURA</span><small>photo coming soon</small></div>'}
       </div>
       <div class="product-info">
         <span class="eyebrow">{h(product["dept"])}</span>
@@ -690,7 +690,7 @@ def product_html(product: dict, siblings: list[dict]) -> str:
         desc,
         abs_url(f"p/{slug}.html"),
         keywords,
-        {"og_image": product["image"], "og_type": "product"},
+        {"og_image": product["image"] or "assets/logo.png", "og_type": "product"},
         f' data-product-slug="{h(slug)}"',
         main,
         f'<script type="module" src="{prefix}js/product.js"></script>',
@@ -750,7 +750,7 @@ def type_meta(slug: str, t: dict, items: list[dict], kw: dict) -> dict:
         "h1": t["h1"],
         "description": desc,
         "keywords": ", ".join(terms + t.get("phrases", []) + kw["global_terms"]),
-        "og_image": items[0]["image"] if items and items[0].get("image") else "assets/logo.png",
+        "og_image": next((p["image"] for p in items if p.get("image")), "assets/logo.png"),
         "also": others + [("All clothes", "fashion.html")],
         "related": [
             ("Streetwear", "streetwear.html"),

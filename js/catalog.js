@@ -7,112 +7,8 @@ import { stringId } from "./utils.js";
 import { getSupabaseClient, waitForSupabase } from "./supabase.js";
 
 const LOCAL_PRODUCTS = [
-  {
-    id: "1",
-    dept: "fashion",
-    collection: "streetwear",
-    name: "Brooklyn Crop Set",
-    description: "A soft two-piece crop top and joggers set for easy street days.",
-    price_ghs: 180,
-    compare_at_ghs: 230,
-    flash_sale: true,
-    sizes: ["XS", "S", "M", "L", "XL"],
-    colors: ["Black", "White"],
-    badge: "Flash sale",
-    in_stock: true,
-    sort_order: 1,
-    image: "assets/products/fashion-crop-set.jpg"
-  },
-  {
-    id: "2",
-    dept: "fashion",
-    collection: "streetwear",
-    name: "Oversized Navy Tee",
-    description: "An oversized cotton tee in navy. Everyday wear, nothing extra.",
-    price_ghs: 90,
-    compare_at_ghs: 120,
-    flash_sale: true,
-    sizes: ["XS", "S", "M", "L", "XL"],
-    colors: ["Royal Navy", "White", "Black"],
-    badge: "Flash sale",
-    in_stock: true,
-    sort_order: 2,
-    image: "assets/products/fashion-royal-tee.jpg"
-  },
-  {
-    id: "3",
-    dept: "fashion",
-    collection: "modest",
-    name: "Modest Satin Maxi Dress",
-    description: "A relaxed satin maxi dress with long sleeves, made to move with you.",
-    price_ghs: 260,
-    sizes: ["XS", "S", "M", "L", "XL"],
-    colors: ["Emerald", "Navy", "Burgundy"],
-    badge: null,
-    in_stock: true,
-    sort_order: 3,
-    image: "assets/products/fashion-modest-maxi.jpg"
-  },
-  {
-    id: "4",
-    dept: "fashion",
-    collection: "modest",
-    name: "Everyday Modest Set",
-    description: "A long-line top and wide trousers set. Comfortable and easy to style.",
-    price_ghs: 220,
-    sizes: ["XS", "S", "M", "L", "XL"],
-    colors: ["Beige", "Navy"],
-    badge: null,
-    in_stock: true,
-    sort_order: 4,
-    image: "assets/products/fashion-modest-set.jpg"
-  },
-  {
-    id: "15",
-    dept: "fashion",
-    collection: "modest",
-    name: "Ivory Wrap Dress",
-    description: "A soft ivory wrap dress with a flattering tie waist. Easy to dress up or down.",
-    price_ghs: 240,
-    sizes: ["XS", "S", "M", "L", "XL"],
-    colors: ["Ivory"],
-    badge: null,
-    in_stock: true,
-    sort_order: 15,
-    image: "assets/products/fashion-ivory-wrap-dress.jpg"
-  },
-  {
-    id: "16",
-    dept: "fashion",
-    collection: "streetwear",
-    name: "Navy Wide-Leg Trousers",
-    description: "High-waist navy trousers with a relaxed wide leg. A polished streetwear staple.",
-    price_ghs: 160,
-    compare_at_ghs: 200,
-    flash_sale: true,
-    sizes: ["XS", "S", "M", "L", "XL"],
-    colors: ["Navy"],
-    badge: "Flash sale",
-    in_stock: true,
-    sort_order: 16,
-    image: "assets/products/fashion-wide-leg-trousers.jpg"
-  },
-  {
-    id: "17",
-    dept: "fashion",
-    collection: "streetwear",
-    name: "Burgundy Pleated Skirt",
-    description: "A modern burgundy pleated midi skirt with a soft movement.",
-    price_ghs: 130,
-    compare_at_ghs: 170,
-    flash_sale: true,
-    sizes: ["XS", "S", "M", "L"],
-    colors: ["Burgundy"],
-    badge: "Flash sale",
-    in_stock: true,
-    sort_order: 17,
-    image: "assets/products/fashion-pleated-skirt.jpg"
-  },
+  // Real stock only. No placeholder products ship with the site any more;
+  // photos arrive through Seller Center (Supabase Storage) or assets/products/.
   {
     id: "30",
     dept: "fashion",
@@ -125,7 +21,7 @@ const LOCAL_PRODUCTS = [
     badge: "New",
     in_stock: true,
     sort_order: 30,
-    image: "assets/placeholder-fashion.svg"
+    image: ""
   },
   {
     id: "31",
@@ -139,7 +35,7 @@ const LOCAL_PRODUCTS = [
     badge: "New",
     in_stock: true,
     sort_order: 31,
-    image: "assets/placeholder-fashion.svg"
+    image: ""
   },
   {
     id: "32",
@@ -153,7 +49,7 @@ const LOCAL_PRODUCTS = [
     badge: "New",
     in_stock: true,
     sort_order: 32,
-    image: "assets/placeholder-fashion.svg"
+    image: ""
   },
   {
     id: "33",
@@ -167,7 +63,7 @@ const LOCAL_PRODUCTS = [
     badge: "New",
     in_stock: true,
     sort_order: 33,
-    image: "assets/placeholder-fashion.svg"
+    image: ""
   }
 ];
 

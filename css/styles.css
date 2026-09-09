@@ -2683,3 +2683,38 @@ body.scrolled .site-header {
 .pe-zoom input[type="range"] { flex: 1; accent-color: var(--navy); }
 .pe-hint { margin: 0; font-size: .8rem; color: var(--ink-faint); }
 .pe-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+/* Brand tile shown while a listing has no photo yet. Not a fake photo —
+   a clean wash with the wordmark, in the brand palette. */
+.media-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  background: linear-gradient(160deg, var(--ivory-deep), #dfe4f7);
+  color: var(--navy-soft);
+  font-weight: 700;
+  letter-spacing: .18em;
+  font-size: 12px;
+}
+.media-fallback small {
+  font-weight: 500;
+  letter-spacing: .04em;
+  color: var(--ink-faint);
+  font-size: 11px;
+}
+.media-fallback-pdp {
+  aspect-ratio: 3 / 4;
+  border-radius: var(--radius);
+  font-size: 15px;
+}
+.media-fallback-thumb {
+  width: 44px;
+  height: 44px;
+  border-radius: 6px;
+  flex: 0 0 auto;
+  font-size: 14px;
+}

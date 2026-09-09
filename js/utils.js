@@ -70,11 +70,11 @@ export function isUsableImageSrc(value) {
 export function getProductImage(product) {
   const image = product.image ? String(product.image) : "";
   if (isUsableImageSrc(image)) return rootHref(image);
-  return rootHref("assets/placeholder-fashion.svg");
+  return "";
 }
 
-// Every photo on a listing: cover first, then the rest. Falls back to the
-// shared placeholder when a product has no usable photo yet.
+// Every photo on a listing: cover first, then the rest. Empty when the
+// listing has no photo yet — renderers show a brand tile, never a fake photo.
 export function getProductImages(product) {
   const extra = Array.isArray(product?.images) ? product.images : [];
   const cover = product?.image ? String(product.image) : "";
@@ -87,7 +87,7 @@ export function getProductImages(product) {
     seen.add(href);
     out.push(href);
   });
-  return out.length ? out : [rootHref("assets/placeholder-fashion.svg")];
+  return out;
 }
 
 export function getDaysAhead(count) {

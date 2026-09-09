@@ -659,7 +659,9 @@ function renderProducts(products, editingId) {
             ${products.map((p) => `
               <tr>
                 <td class="admin-product-cell">
-                  <img src="${escapeHtml(getProductImage(p))}" alt="">
+                  ${getProductImage(p)
+                    ? `<img src="${escapeHtml(getProductImage(p))}" alt="">`
+                    : `<span class="media-fallback media-fallback-thumb" aria-label="No photo yet"><span>V</span></span>`}
                   <div>
                     <strong>${escapeHtml(p.name)}</strong>
                     <div class="faint">${escapeHtml(p.badge || "")}</div>
