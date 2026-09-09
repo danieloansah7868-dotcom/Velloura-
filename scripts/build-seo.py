@@ -91,9 +91,9 @@ LANDINGS = {
         "file": "fashion.html",
         "dept": "fashion",
         "collection": None,
-        "title": "Affordable clothes for women in Accra | VELLOURA",
+        "title": "All clothes for women in Accra — dresses, sets, tees | VELLOURA",
         "h1": "Affordable clothes for women in Accra",
-        "description": "Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with MoMo or card.",
+        "description": "Browse every VELLOURA piece: wrap dresses, modest sets, oversized tees, wide-leg trousers and skirts. Delivery in Greater Accra. Pay with MoMo or card.",
         "keywords": "affordable clothes Accra, dress, skirt, trousers, top, tee, blouse, streetwear, modest, Ghana",
         "og_image": "assets/products/fashion-ivory-wrap-dress.jpg",
         "also": [
@@ -189,7 +189,7 @@ def header_footer(prefix: str, active_nav: str = "shop"):
         cls = ' class="active"' if active_nav == key else ""
         return f'<a href="{prefix}{href}"{cls}>{label}</a>'
 
-    header = f'''  <div class="announce">We deliver across Ghana · Pay with MoMo or card</div>
+    header = f'''  <div class="announce">Delivery in Greater Accra · Pay with MoMo or card</div>
   <header class="site-header">
     <div class="header-inner">
       <a class="brand" href="{prefix}index.html">
@@ -386,14 +386,6 @@ def landing_html(key: str, products: list[dict]) -> str:
                 {"@type": "ListItem", "position": 1, "name": "Home", "item": abs_url("index.html")},
                 {"@type": "ListItem", "position": 2, "name": "Shop", "item": abs_url("shop.html")},
                 {"@type": "ListItem", "position": 3, "name": meta["h1"], "item": abs_url(meta["file"])},
-            ],
-        },
-        {
-            "@context": "https://schema.org",
-            "@type": "FAQPage",
-            "mainEntity": [
-                {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}}
-                for q, a in meta["faqs"]
             ],
         },
     ]
@@ -616,7 +608,7 @@ Sitemap: {SITE}/sitemap.xml
 def write_sitemap(paths: list[str]):
     urls = []
     for path in paths:
-        loc = abs_url(path)
+        loc = SITE + "/" if path == "index.html" else abs_url(path)
         priority = "1.0" if path == "index.html" else "0.8" if path.endswith(".html") and "/" not in path else "0.6"
         urls.append(
             f"""  <url>
@@ -749,7 +741,7 @@ def main():
 
     inject_head(
         ROOT / "index.html",
-        abs_url("index.html"),
+        SITE + "/",
         title="Affordable clothes for women in Accra | VELLOURA",
         description="Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with MoMo or card.",
         keywords="affordable clothes Accra, dress Ghana, streetwear, modest wear, VELLOURA",
