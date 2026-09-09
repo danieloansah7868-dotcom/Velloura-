@@ -119,7 +119,7 @@ function renderCheckout() {
             <input type="radio" name="payment" value="valmont" checked>
             <span class="radio-body">
               <strong>Pay now</strong>
-              <span>Valmont · MTN MoMo, Vodafone Cash, AirtelTigo or card</span>
+              <span>MTN MoMo, Vodafone Cash, AirtelTigo or card</span>
             </span>
           </label>
         </div>
@@ -144,7 +144,7 @@ function renderCheckout() {
   });
 
   if (items.length) {
-    placeBtn.innerHTML = `<span>Pay now · ${formatGHS(total)}</span><small>Valmont</small>`;
+    placeBtn.textContent = `Pay now · ${formatGHS(total)}`;
   } else {
     placeBtn.textContent = "Your bag is empty";
   }
@@ -198,8 +198,7 @@ function renderSuccess(record) {
           <strong>Total: ${formatGHS(record.total_ghs)}</strong>
         </p>
         <a class="btn btn-primary btn-full pay-now-btn" href="${escapeHtml(payHref)}" target="_blank" rel="noopener">
-          <span>Pay now</span>
-          <small>Valmont</small>
+          <span>Pay now · ${formatGHS(record.total_ghs)}</span>
         </a>
         <a class="btn btn-ghost btn-full" href="${waLink}" target="_blank" rel="noopener">WhatsApp order number</a>
         <a class="btn btn-ghost btn-full" href="track.html?phone=${encodeURIComponent(record.phone)}">Track with phone</a>
