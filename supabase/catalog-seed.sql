@@ -205,3 +205,17 @@ insert into public.products (dept, collection, name, description, price_ghs, siz
 insert into public.products (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image) select 'fashion', 'streetwear', 'Magenta Alo-Print Ruffle Dress', 'A magenta pink alo-print dress with a ruffle hem and a belted waist that holds its shape.', 395, array['S','M','L'], array['Pink'], 'New', true, 302, 'assets/products/magenta-alo-print-ruffle-dress.jpg' where not exists (select 1 from public.products where name = 'Magenta Alo-Print Ruffle Dress');
 insert into public.products (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image) select 'fashion', 'streetwear', 'Lilac Print Belted Midi Dress', 'A lilac printed midi with short sleeves and a self belt - easy office-to-evening wear.', 295, array['S','M','L'], array['Lilac'], 'New', true, 303, 'assets/products/lilac-print-belted-midi-dress.jpg' where not exists (select 1 from public.products where name = 'Lilac Print Belted Midi Dress');
 insert into public.products (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image) select 'fashion', 'streetwear', 'Pink-White Stripe Keyhole Midi Dress', 'A pink and white striped sleeveless midi with a keyhole neckline and pearl flower appliques.', 290, array['S','M','L'], array['Pink', 'White'], 'New', true, 304, 'assets/products/pink-white-stripe-keyhole-midi-dress.jpg' where not exists (select 1 from public.products where name = 'Pink-White Stripe Keyhole Midi Dress');
+
+-- addendum 2: flash sale flags + size variants
+update public.products set compare_at_ghs = 290, flash_sale = true where name = 'Olive Dotted Fringe Two-Piece Set';
+update public.products set compare_at_ghs = 250, flash_sale = true where name = 'Striped Tee & Sparkle Skirt Set';
+update public.products set compare_at_ghs = 315, flash_sale = true where name = 'Coral Floral Belted Maxi Dress';
+update public.products set compare_at_ghs = 275, flash_sale = true where name = 'Turquoise Stripe Applique Midi Dress';
+update public.products set compare_at_ghs = 380, flash_sale = true where name = 'Blue Polka-Dot Ruffle-Hem Dress';
+update public.products set compare_at_ghs = 425, flash_sale = true where name = 'Orange Alo Tee & Pleated Skirt Set';
+update public.products set compare_at_ghs = 515, flash_sale = true where name = 'Magenta Alo-Print Ruffle Dress';
+update public.products set compare_at_ghs = 385, flash_sale = true where name = 'Lilac Print Belted Midi Dress';
+update public.products set compare_at_ghs = 380, flash_sale = true where name = 'Pink-White Stripe Keyhole Midi Dress';
+update public.products set sizes = array['S','M','L','XL'] where id > 4 and (name ilike '%dress%' or name ilike '%jumpsuit%') and name not ilike '%set%';
+update public.products set sizes = array['S','M','L','XL'] where id > 4 and name not ilike '%set%' and name not ilike '%dress%' and name not ilike '%jumpsuit%' and (name ilike '%tee%' or name ilike '%sweatshirt%' or name ilike '%hoodie%' or name ilike '%top%' or name ilike '%shirt%' or name ilike '%jersey%');
+update public.products set sizes = array['XS','S','M','L'] where id > 4 and name not ilike '%set%' and name not ilike '%dress%' and (name ilike '%trouser%' or name ilike '%jeans%' or name ilike '%pants%' or name ilike '%skirt%');

@@ -2718,3 +2718,16 @@ body.scrolled .site-header {
   flex: 0 0 auto;
   font-size: 14px;
 }
+
+/* Flipping home carousels (flash sale + new arrivals). */
+.flip { position: relative; overflow: hidden; }
+.flip-track { display: flex; transition: transform .55s ease; }
+.flip-page { min-width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 2px; }
+@media (max-width: 900px) { .flip-page { grid-template-columns: repeat(2, 1fr); } }
+.flip-dots { display: flex; gap: 6px; justify-content: center; margin-top: 12px; }
+.flip-dots button { width: 9px; height: 9px; padding: 0; border-radius: 50%; border: 0; background: #4b4b52; cursor: pointer; }
+.flip-dots button.on { background: #d8a13a; }
+.flip-nav { position: absolute; top: 38%; width: 36px; height: 36px; border: 0; border-radius: 50%; background: rgba(255,255,255,.85); color: #17171a; font-size: 20px; line-height: 1; cursor: pointer; z-index: 3; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.flip-nav.prev { left: 6px; }
+.flip-nav.next { right: 6px; }
+.flash-section .section-head h2 { color: #c2410c; }
