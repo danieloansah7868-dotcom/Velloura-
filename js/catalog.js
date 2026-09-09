@@ -2,7 +2,7 @@
 // - When Supabase is configured, products are read from the public.products table.
 // - When Supabase is not configured (demo mode), a matching local placeholder set is used.
 
-import { isDemoMode } from "./config.js";
+import { CONFIG, isDemoMode } from "./config.js";
 import { stringId } from "./utils.js";
 import { getSupabaseClient, waitForSupabase } from "./supabase.js";
 
@@ -112,6 +112,62 @@ const LOCAL_PRODUCTS = [
     in_stock: true,
     sort_order: 17,
     image: "assets/products/fashion-pleated-skirt.jpg"
+  },
+  {
+    id: "30",
+    dept: "fashion",
+    collection: "streetwear",
+    name: "Olive Dotted Fringe Two-Piece Set",
+    description: "A ribbed olive two-piece with tiny white dots: an easy round-neck top and a fringe-cut mini skirt that moves when you do.",
+    price_ghs: 220,
+    sizes: ["S", "M", "L"],
+    colors: ["Olive"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 30,
+    image: "assets/placeholder-fashion.svg"
+  },
+  {
+    id: "31",
+    dept: "fashion",
+    collection: "streetwear",
+    name: "Striped Tee & Sparkle Skirt Set",
+    description: "A white tee with fine black stripes and a fringed neckline, paired with a black sparkle pencil skirt for day-to-night.",
+    price_ghs: 190,
+    sizes: ["S", "M", "L"],
+    colors: ["Black / White"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 31,
+    image: "assets/placeholder-fashion.svg"
+  },
+  {
+    id: "32",
+    dept: "fashion",
+    collection: "modest",
+    name: "Coral Floral Belted Maxi Dress",
+    description: "A breezy white maxi covered in coral florals, with a matching self-tie belt and a soft pleated skirt with a front split.",
+    price_ghs: 240,
+    sizes: ["M", "L", "XL"],
+    colors: ["Coral"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 32,
+    image: "assets/placeholder-fashion.svg"
+  },
+  {
+    id: "33",
+    dept: "fashion",
+    collection: "streetwear",
+    name: "Turquoise Stripe Applique Midi Dress",
+    description: "A ribbed sleeveless midi in bold turquoise and white stripes, with pearl flower appliques and a keyhole neckline.",
+    price_ghs: 210,
+    sizes: ["S", "M", "L"],
+    colors: ["Turquoise"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 33,
+    image: "assets/placeholder-fashion.svg"
   }
 ];
 
@@ -131,7 +187,14 @@ function readStore() {
 
 function writeStore(products) {
   const list = (products || []).map(normalizeProduct).filter(isClothing);
-  localStorage.setItem(PRODUCTS_KEY, JSON.stringify(list));
+  try {
+    localStorage.setItem(PRODUCTS_KEY, JSON.stringify(list));
+  } catch (err) {
+    if (err && (err.name === "QuotaExceededError" || err.code === 22 || err.code === 1014)) {
+      throw new Error("Browser storage is full. Remove a photo, or connect Supabase so photos are hosted instead.");
+    }
+    throw err;
+  }
   productsCache = list.map(cloneProduct);
 }
 
@@ -145,6 +208,16 @@ function normalizeProduct(row) {
   const sizes = Array.isArray(row.sizes) ? row.sizes : [];
   const colors = Array.isArray(row.colors) ? row.colors : [];
   const id = stringId(row.id);
+  // blob: URLs are edit-session previews only — never persist them.
+  const images = (Array.isArray(row.images) ? row.images : [])
+    .map((src) => String(src || "").trim())
+    .filter((src) => src && !src.startsWith("blob:"));
+  const coverImage = String(row.image || "").trim();
+  const cover = (coverImage.startsWith("blob:") ? "" : coverImage) || images[0] || null;
+  const allImages = cover
+    ? [cover, ...images.filter((src) => src !== cover)]
+    : images;
+  const was = row.compare_at_ghs;
   return {
     id,
     dept: row.dept,
@@ -152,12 +225,15 @@ function normalizeProduct(row) {
     name: row.name,
     description: row.description || "",
     price_ghs: Number(row.price_ghs),
+    compare_at_ghs: was == null || was === "" ? null : Number(was),
+    flash_sale: row.flash_sale === true,
     sizes,
     colors,
     badge: row.badge || null,
     in_stock: row.in_stock !== false,
     sort_order: Number(row.sort_order || 0),
-    image: row.image || null,
+    image: cover,
+    images: allImages,
     slug: slugifyName(row.name)
   };
 }
@@ -173,7 +249,8 @@ function cloneProduct(p) {
   return {
     ...p,
     sizes: [...(p.sizes || [])],
-    colors: [...(p.colors || [])]
+    colors: [...(p.colors || [])],
+    images: [...(p.images || [])]
   };
 }
 
@@ -224,25 +301,99 @@ export async function loadProducts({ force = false } = {}) {
   return base.map(cloneProduct);
 }
 
-export function saveProduct(input) {
+// Save a product. Always updates the browser store first so Seller Center
+// reacts instantly, then syncs to Supabase through the gated
+// seller_upsert_product function (supabase/setup.sql).
+// Resolves { product, synced, error } — synced=false means the change lives
+// in this browser only and the owner should re-run setup.sql / check the key.
+export async function saveProduct(input) {
   const products = readStore() || getLocalProducts();
+  const images = (Array.isArray(input.images) ? input.images : [])
+    .map((src) => String(src || "").trim())
+    .filter(Boolean);
   const product = normalizeProduct({
     ...input,
     id: input.id || `p-${Date.now()}`,
+    images,
+    image: String(input.image || "").trim() || images[0] || "",
     sort_order: input.sort_order || products.length + 1
   });
   const idx = products.findIndex((p) => stringId(p.id) === stringId(product.id));
   if (idx >= 0) products[idx] = { ...products[idx], ...product };
   else products.push(product);
   writeStore(products);
-  return cloneProduct(product);
+
+  const result = { product: cloneProduct(product), synced: isDemoMode, error: null };
+  if (isDemoMode) return result;
+
+  try {
+    const ready = await waitForSupabase();
+    const sb = ready ? getSupabaseClient() : null;
+    if (!sb) throw new Error("Supabase is not connected.");
+    const payload = {
+      id: product.id,
+      dept: product.dept || "fashion",
+      collection: product.collection || "",
+      name: product.name,
+      description: product.description || "",
+      price_ghs: product.price_ghs,
+      compare_at_ghs: product.compare_at_ghs == null ? "" : product.compare_at_ghs,
+      flash_sale: product.flash_sale === true,
+      sizes: product.sizes,
+      colors: product.colors,
+      badge: product.badge || "",
+      in_stock: product.in_stock !== false,
+      image: product.image || "",
+      images: product.images,
+      sort_order: product.sort_order || 0
+    };
+    const { data, error } = await sb.rpc("seller_upsert_product", {
+      p_key: String(CONFIG.sellerKey || ""),
+      p_product: payload
+    });
+    if (error) throw new Error(error.message || "Supabase rejected the save.");
+    if (data && typeof data === "object") {
+      const saved = normalizeProduct(data);
+      const list = readStore() || [];
+      const i = list.findIndex((p) => stringId(p.id) === stringId(product.id));
+      if (i >= 0) list[i] = saved;
+      else list.push(saved);
+      writeStore(list);
+      result.product = cloneProduct(saved);
+    }
+    result.synced = true;
+  } catch (err) {
+    console.error("Product saved in the browser only:", err);
+    result.error = err?.message || String(err);
+  }
+  return result;
 }
 
-export function deleteProduct(id) {
+// Delete a product locally, then from Supabase when connected.
+// Resolves { synced, error }.
+export async function deleteProduct(id) {
   const products = (readStore() || getLocalProducts())
     .filter((p) => stringId(p.id) !== stringId(id));
   writeStore(products);
-  return products.map(cloneProduct);
+
+  const result = { products: products.map(cloneProduct), synced: isDemoMode, error: null };
+  if (isDemoMode) return result;
+
+  try {
+    const ready = await waitForSupabase();
+    const sb = ready ? getSupabaseClient() : null;
+    if (!sb) throw new Error("Supabase is not connected.");
+    const { error } = await sb.rpc("seller_delete_product", {
+      p_key: String(CONFIG.sellerKey || ""),
+      p_id: stringId(id)
+    });
+    if (error) throw new Error(error.message || "Supabase rejected the delete.");
+    result.synced = true;
+  } catch (err) {
+    console.error("Product deleted in the browser only:", err);
+    result.error = err?.message || String(err);
+  }
+  return result;
 }
 
 export async function getProduct(idValue) {

@@ -4,12 +4,13 @@ import { loadProducts } from "./catalog.js";
 import { renderProductGrid, showNotice } from "./render.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
 import { getQueryParam } from "./utils.js";
-import { CATEGORY_FILES, scoreProduct } from "./keywords.js";
+import { CATEGORY_FILES, scoreProduct, productTypes } from "./keywords.js";
 import "./account-ui.js";
 
 let allProducts = [];
 let activeDept = "all";
 let activeCollection = "";
+let activeType = "";
 let searchQuery = "";
 let sortBy = "new";
 
@@ -34,6 +35,9 @@ function updateChips() {
 
 function getVisibleProducts() {
   let products = allProducts.filter((p) => p.in_stock !== false);
+  if (activeType) {
+    products = products.filter((p) => productTypes(p).includes(activeType));
+  }
   if (activeDept !== "all") {
     products = products.filter((p) => p.dept === activeDept);
   }
@@ -71,6 +75,7 @@ function updateGrid() {
 
 function applyUrlState() {
   const defaultDept = document.body.getAttribute("data-default-dept") || "";
+  activeType = document.body.getAttribute("data-default-type") || "";
   const urlDept = getQueryParam("dept");
   const urlCollection = getQueryParam("collection");
   const q = getQueryParam("q").trim();

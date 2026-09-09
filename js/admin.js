@@ -4,6 +4,8 @@ import { listOrders, updateOrderStatus } from "./store.js";
 import { loadProducts, saveProduct, deleteProduct } from "./catalog.js";
 import { listCustomers } from "./customers.js";
 import { listDeliveryAreas, saveDeliveryAreas, DEFAULT_AREAS } from "./delivery.js";
+import { compressImageSource, openPhotoEditor, PHOTO_MAX_PER_LISTING } from "./photo-editor.js";
+import { uploadProductImage, deleteProductImageByUrl } from "./media.js";
 
 const allowed = requireAdmin();
 
@@ -24,6 +26,13 @@ if (emailEl && session) emailEl.textContent = session.email;
 const TABS = ["home", "orders", "products", "customers", "delivery"];
 let orderFilter = "all";
 let openOrderCode = "";
+
+// Listing photo editor state for the product form.
+// Each draft: { key, src (preview), blob (new/edited pixels), remote, oldUrl }
+let photoDraft = [];
+let photoSeq = 0;
+let pendingPhotoRemovals = []; // hosted photos removed from a listing, cleaned up after a successful save
+let productsNotice = "";
 
 function tabFromHash() {
   const name = (window.location.hash || "#home").slice(1).split("?")[0];
@@ -207,12 +216,15 @@ function productFormHTML(product) {
           </select>
         </div>
         <div class="field field-full">
-          <label for="p-image">Image URL or path</label>
-          <input id="p-image" name="image" placeholder="assets/products/my-photo.jpg" value="${escapeHtml(p.image || "")}">
-        </div>
-        <div class="field field-full">
-          <label for="p-file">Or upload a photo</label>
-          <input id="p-file" name="file" type="file" accept="image/*">
+          <label id="photos-label">Listing photos</label>
+          <p class="hint">The first photo is the cover shown on shop cards. Tap ✎ to crop or straighten a photo. Up to ${PHOTO_MAX_PER_LISTING} photos.</p>
+          <div class="photo-manager" id="photo-manager" aria-labelledby="photos-label"></div>
+          <div class="photo-add-row">
+            <button class="btn btn-ghost" type="button" id="add-photos-btn">Add photos</button>
+            <input id="p-files" type="file" accept="image/*" multiple hidden>
+            <input id="p-image-url" class="photo-url-input" type="text" placeholder="…or paste an image URL">
+            <button class="btn btn-ghost" type="button" id="add-url-btn">Add URL</button>
+          </div>
         </div>
       </div>
       <div id="product-form-error" class="error-text" hidden></div>
@@ -223,34 +235,180 @@ function productFormHTML(product) {
     </form>`;
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Could not read the photo."));
-    reader.readAsDataURL(file);
+function newPhotoKey() {
+  photoSeq += 1;
+  return `ph-${Date.now()}-${photoSeq}`;
+}
+
+function isHostedPhoto(src) {
+  return /\/storage\/v1\/object\/public\//.test(String(src || ""));
+}
+
+function photoDraftFrom(product) {
+  if (!product) return [];
+  const list = Array.isArray(product.images) && product.images.length
+    ? product.images
+    : product.image ? [product.image] : [];
+  return list.filter(Boolean).map((src) => ({
+    key: newPhotoKey(),
+    src: String(src),
+    blob: null,
+    remote: true,
+    oldUrl: null
+  }));
+}
+
+function renderPhotoManager() {
+  const wrap = document.getElementById("photo-manager");
+  if (!wrap) return;
+  if (!photoDraft.length) {
+    wrap.innerHTML = `<p class="muted photo-empty">No photos yet — this listing will show the placeholder until you add one.</p>`;
+    return;
+  }
+  wrap.innerHTML = `
+    <div class="photo-grid">
+      ${photoDraft.map((entry, i) => `
+        <figure class="photo-tile" data-key="${escapeHtml(entry.key)}">
+          <img src="${escapeHtml(entry.src)}" alt="Listing photo ${i + 1}">
+          ${i === 0 ? `<span class="photo-cover">Cover</span>` : ""}
+          <figcaption class="photo-tile-actions">
+            <button class="photo-btn" type="button" data-photo-move="-1" title="Move left" aria-label="Move photo left" ${i === 0 ? "disabled" : ""}>◀</button>
+            <button class="photo-btn" type="button" data-photo-cover title="Make cover" aria-label="Make this photo the cover" ${i === 0 ? "disabled" : ""}>★</button>
+            <button class="photo-btn" type="button" data-photo-move="1" title="Move right" aria-label="Move photo right" ${i === photoDraft.length - 1 ? "disabled" : ""}>▶</button>
+            <button class="photo-btn" type="button" data-photo-edit title="Crop / resize" aria-label="Crop or resize photo">✎</button>
+            <button class="photo-btn danger" type="button" data-photo-remove title="Remove" aria-label="Remove photo">✕</button>
+          </figcaption>
+        </figure>`).join("")}
+    </div>`;
+}
+
+function photoError(message) {
+  const el = document.getElementById("product-form-error");
+  if (!el) return;
+  el.hidden = false;
+  el.textContent = message;
+}
+
+function bindPhotoManager() {
+  const wrap = document.getElementById("photo-manager");
+  const filesInput = document.getElementById("p-files");
+  const addBtn = document.getElementById("add-photos-btn");
+  const urlInput = document.getElementById("p-image-url");
+  const urlBtn = document.getElementById("add-url-btn");
+
+  addBtn?.addEventListener("click", () => filesInput?.click());
+
+  filesInput?.addEventListener("change", async () => {
+    const files = Array.from(filesInput.files || []);
+    filesInput.value = "";
+    for (const file of files) {
+      if (photoDraft.length >= PHOTO_MAX_PER_LISTING) {
+        photoError(`Up to ${PHOTO_MAX_PER_LISTING} photos per listing.`);
+        break;
+      }
+      if (!/^image\//.test(file.type)) {
+        photoError(`"${file.name}" is not a photo.`);
+        continue;
+      }
+      try {
+        // Compress now so the preview shows exactly what will be saved.
+        const blob = await compressImageSource(file);
+        photoDraft.push({
+          key: newPhotoKey(),
+          src: URL.createObjectURL(blob),
+          blob,
+          remote: false,
+          oldUrl: null
+        });
+      } catch (err) {
+        photoError(err.message || `Could not read "${file.name}".`);
+      }
+    }
+    renderPhotoManager();
+  });
+
+  urlBtn?.addEventListener("click", () => {
+    const value = String(urlInput?.value || "").trim();
+    if (!value) return;
+    if (!/^(https?:)?\/\//i.test(value) && !/^data:image\//i.test(value)) {
+      photoError("That does not look like an image URL.");
+      return;
+    }
+    if (photoDraft.length >= PHOTO_MAX_PER_LISTING) {
+      photoError(`Up to ${PHOTO_MAX_PER_LISTING} photos per listing.`);
+      return;
+    }
+    photoDraft.push({ key: newPhotoKey(), src: value, blob: null, remote: true, oldUrl: null });
+    urlInput.value = "";
+    renderPhotoManager();
+  });
+
+  wrap?.addEventListener("click", async (event) => {
+    const btn = event.target.closest("button[data-photo-move], button[data-photo-cover], button[data-photo-edit], button[data-photo-remove]");
+    if (!btn || btn.disabled) return;
+    const tile = btn.closest("[data-key]");
+    const key = tile ? tile.getAttribute("data-key") : "";
+    const idx = photoDraft.findIndex((entry) => entry.key === key);
+    if (idx < 0) return;
+
+    if (btn.hasAttribute("data-photo-move")) {
+      const to = idx + Number(btn.getAttribute("data-photo-move"));
+      if (to < 0 || to >= photoDraft.length) return;
+      const [entry] = photoDraft.splice(idx, 1);
+      photoDraft.splice(to, 0, entry);
+      renderPhotoManager();
+      return;
+    }
+
+    if (btn.hasAttribute("data-photo-cover")) {
+      const [entry] = photoDraft.splice(idx, 1);
+      photoDraft.unshift(entry);
+      renderPhotoManager();
+      return;
+    }
+
+    if (btn.hasAttribute("data-photo-remove")) {
+      const [entry] = photoDraft.splice(idx, 1);
+      // Hosted photos are deleted from Storage after the listing saves OK.
+      if (entry.remote && isHostedPhoto(entry.src)) pendingPhotoRemovals.push(entry.src);
+      if (String(entry.src).startsWith("blob:")) URL.revokeObjectURL(entry.src);
+      renderPhotoManager();
+      return;
+    }
+
+    if (btn.hasAttribute("data-photo-edit")) {
+      const entry = photoDraft[idx];
+      try {
+        const result = await openPhotoEditor(entry.src);
+        if (!result || !result.blob) return; // cancelled
+        const oldSrc = entry.src;
+        entry.blob = result.blob;
+        entry.src = URL.createObjectURL(result.blob);
+        entry.remote = false;
+        if (!entry.oldUrl && isHostedPhoto(oldSrc)) entry.oldUrl = oldSrc;
+        if (String(oldSrc).startsWith("blob:")) URL.revokeObjectURL(oldSrc);
+        renderPhotoManager();
+      } catch (err) {
+        photoError(err.message || "Could not edit that photo.");
+      }
+    }
   });
 }
 
 function bindProductForm(products) {
   const form = document.getElementById("product-form");
   if (!form) return;
+  renderPhotoManager();
+  bindPhotoManager();
   document.getElementById("cancel-edit")?.addEventListener("click", () => {
     renderProducts(products);
   });
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const errorEl = document.getElementById("product-form-error");
+    errorEl.hidden = true;
+    errorEl.textContent = "";
     const data = new FormData(form);
-    const file = form.elements.namedItem("file")?.files?.[0];
-    let image = String(data.get("image") || "").trim();
-    try {
-      if (file) image = await readFileAsDataUrl(file);
-    } catch (err) {
-      errorEl.hidden = false;
-      errorEl.textContent = err.message;
-      return;
-    }
     const name = String(data.get("name") || "").trim();
     const price = Number(data.get("price_ghs"));
     if (name.length < 2) {
@@ -263,21 +421,63 @@ function bindProductForm(products) {
       errorEl.textContent = "Please enter a valid price.";
       return;
     }
-    saveProduct({
-      id: String(data.get("id") || ""),
-      name,
-      dept: String(data.get("dept") || "fashion"),
-      collection: String(data.get("collection") || "").trim(),
-      description: String(data.get("description") || "").trim(),
-      price_ghs: price,
-      sizes: splitList(data.get("sizes")),
-      colors: splitList(data.get("colors")),
-      badge: String(data.get("badge") || "").trim(),
-      in_stock: String(data.get("in_stock")) !== "false",
-      image
-    });
-    boot();
-    showTab("products");
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const submitLabel = submitBtn ? submitBtn.textContent : "";
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Saving…";
+    }
+
+    try {
+      // Upload new/edited photos first, then save the listing with real URLs.
+      const images = [];
+      const cleanup = [];
+      for (const entry of photoDraft.slice(0, PHOTO_MAX_PER_LISTING)) {
+        if (entry.blob) {
+          const upload = await uploadProductImage(entry.blob, name);
+          images.push(upload.url);
+          if (upload.remote && entry.oldUrl) cleanup.push(entry.oldUrl);
+        } else if (entry.src) {
+          images.push(entry.src);
+        }
+      }
+      const wasPrice = String(data.get("compare_at_ghs") || "").trim();
+      const result = await saveProduct({
+        id: String(data.get("id") || ""),
+        name,
+        dept: String(data.get("dept") || "fashion"),
+        collection: String(data.get("collection") || "").trim(),
+        description: String(data.get("description") || "").trim(),
+        price_ghs: price,
+        compare_at_ghs: wasPrice === "" ? null : Number(wasPrice),
+        flash_sale: String(data.get("flash_sale")) === "true",
+        sizes: splitList(data.get("sizes")),
+        colors: splitList(data.get("colors")),
+        badge: String(data.get("badge") || "").trim(),
+        in_stock: String(data.get("in_stock")) !== "false",
+        image: images[0] || "",
+        images
+      });
+      if (result.synced) {
+        pendingPhotoRemovals.concat(cleanup).forEach((url) => {
+          deleteProductImageByUrl(url);
+        });
+        pendingPhotoRemovals = [];
+        productsNotice = "";
+      } else {
+        productsNotice = `Saved in this browser only — Supabase did not accept the change (${result.error || "unknown error"}). Run the latest supabase/setup.sql in the Supabase SQL Editor, check sellerKey in js/config.js, then save this product again.`;
+      }
+      boot();
+      showTab("products");
+    } catch (err) {
+      errorEl.hidden = false;
+      errorEl.textContent = err.message || "Could not save the product.";
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = submitLabel;
+      }
+    }
   });
 }
 
@@ -429,7 +629,13 @@ function renderOrders(orders) {
 
 function renderProducts(products, editingId) {
   const editing = editingId ? products.find((p) => String(p.id) === String(editingId)) : null;
+  photoDraft = photoDraftFrom(editing);
   productsEl.innerHTML = `
+    ${productsNotice ? `
+      <div class="notice-box warn" role="status">
+        <span>${escapeHtml(productsNotice)}</span>
+        <button class="notice-dismiss" type="button" id="dismiss-products-notice" aria-label="Dismiss">✕</button>
+      </div>` : ""}
     <div class="admin-card">
       <div class="admin-card-head">
         <h2>${editing ? "Edit product" : "Add a product"}</h2>
@@ -472,6 +678,10 @@ function renderProducts(products, editingId) {
       </div>
     </div>`;
   bindProductForm(products);
+  document.getElementById("dismiss-products-notice")?.addEventListener("click", () => {
+    productsNotice = "";
+    renderProducts(products, editingId);
+  });
 }
 
 function renderDelivery() {
@@ -582,9 +792,19 @@ function bindAdminClicks() {
       const id = deleteBtn.getAttribute("data-delete-product");
       const ok = window.confirm("Delete this product from the shop?");
       if (!ok) return;
-      deleteProduct(id);
-      boot();
-      showTab("products");
+      deleteProduct(id)
+        .then((res) => {
+          productsNotice = res && res.synced === false
+            ? `Removed in this browser only — Supabase still has the product (${res.error || "unknown error"}). Run the latest supabase/setup.sql, check sellerKey in js/config.js, then delete it again.`
+            : "";
+        })
+        .catch((err) => {
+          productsNotice = err.message || "Could not delete the product.";
+        })
+        .then(() => {
+          boot();
+          showTab("products");
+        });
     }
   });
 }
