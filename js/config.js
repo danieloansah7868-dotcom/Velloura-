@@ -15,6 +15,16 @@ export const CONFIG = Object.freeze({
   supabaseUrl: "https://tslvalxmctnjimrbbvsd.supabase.co",
   supabaseAnonKey: "sb_publishable_d6HyDpoKRQiGiND_LH5Nxg_OMZhnK1M",
 
+  // Listing photos. Seller Center uploads to this PUBLIC Storage bucket.
+  // The bucket and its policies are created by supabase/setup.sql.
+  storageBucket: "product-images",
+
+  // Key for the gated product-write functions (seller_upsert_product /
+  // seller_delete_product) in supabase/setup.sql. Front-door only, like the
+  // Seller Center password — change it HERE and in the seller_auth table
+  // together before launch.
+  sellerKey: "f0d60524a83ce5f25d98478fc3f227d21724a073c907b549",
+
   // Checkout payment. The customer sees "Pay"; Valmont is the processor.
   valmontPayUrl: "https://valmontpay.app",
 

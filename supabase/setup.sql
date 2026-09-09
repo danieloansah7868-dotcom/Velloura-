@@ -28,7 +28,10 @@ create table if not exists public.products (
   badge text,
   in_stock boolean not null default true,
   sort_order int default 0,
-  image text
+  image text,
+  images text[] not null default '{}',
+  compare_at_ghs numeric,
+  flash_sale boolean not null default false
 );
 
 -- Allow 'wigs' on projects created from an older version.
@@ -117,129 +120,234 @@ create policy "public can book hair" on public.bookings
   );
 
 -- ---------------------------------------------------------------
--- Placeholder products
--- Placeholder images point at the local files that ship with the repo.
--- The client will replace these products and photos before launch.
--- Every insert is guarded by "where not exists (... name = ...)" so this
--- file can be re-run safely without creating duplicate rows.
+-- No placeholder stock ships any more. On projects that seeded the
+-- old placeholder rows, remove them: real listings carry an empty
+-- image (photo not uploaded yet) or a Supabase Storage URL, never a
+-- repo path.
+-- ---------------------------------------------------------------
+
+delete from public.products where image like 'assets/products/%';
+
+-- ---------------------------------------------------------------
+-- Listing photos + Seller Center product editing
+-- Added for the photo manager. Everything below is SAFE TO RUN
+-- AGAIN on an existing project — it only adds what is missing.
+-- ---------------------------------------------------------------
+
+-- 1) Columns the photo manager and sale prices need.
+alter table public.products add column if not exists images text[] not null default '{}';
+alter table public.products add column if not exists compare_at_ghs numeric;
+alter table public.products add column if not exists flash_sale boolean not null default false;
+
+-- Seed the gallery from the old single-image column where needed.
+update public.products
+   set images = array[image]
+ where coalesce(array_length(images, 1), 0) = 0
+   and image is not null
+   and image <> '';
+
+-- 2) Public Storage bucket for uploaded listing photos.
+insert into storage.buckets (id, name, public)
+values ('product-images', 'product-images', true)
+on conflict (id) do update set public = true;
+
+-- Read is public (the shop shows these photos).
+drop policy if exists "product images are public" on storage.objects;
+create policy "product images are public" on storage.objects
+  for select to anon, authenticated
+  using (bucket_id = 'product-images');
+
+-- Write is open to anyone holding the publishable key, restricted to
+-- image files under products/. This is the same front-door trust level
+-- as the Seller Center password. When real admin logins exist, tighten
+-- these three policies to that role.
+-- Note: newer Supabase projects have no storage.objects.content_type
+-- column (mimetype lives in metadata), so we validate the extension.
+drop policy if exists "seller can upload product images" on storage.objects;
+create policy "seller can upload product images" on storage.objects
+  for insert to anon, authenticated
+  with check (
+    bucket_id = 'product-images'
+    and name like 'products/%'
+    and name ~* '\.(jpe?g|png|webp|avif|gif)$'
+  );
+
+drop policy if exists "seller can replace product images" on storage.objects;
+create policy "seller can replace product images" on storage.objects
+  for update to anon, authenticated
+  using (bucket_id = 'product-images' and name like 'products/%')
+  with check (bucket_id = 'product-images' and name like 'products/%');
+
+drop policy if exists "seller can delete product images" on storage.objects;
+create policy "seller can delete product images" on storage.objects
+  for delete to anon, authenticated
+  using (bucket_id = 'product-images' and name like 'products/%');
+
+-- 3) Gated product writes. The Seller Center password only guards a page,
+-- so product changes go through functions that check a shared seller key.
+-- The key lives in this private table AND in js/config.js (sellerKey).
+-- CHANGE BOTH TOGETHER BEFORE LAUNCH. To rotate:
+--   update public.seller_auth set seller_key = 'a-long-new-secret';
+-- then paste the same value into js/config.js.
+create table if not exists public.seller_auth (
+  id int primary key default 1 check (id = 1),
+  seller_key text not null
+);
+
+insert into public.seller_auth (id, seller_key)
+values (1, 'velloura-seller-2026-change-me')
+on conflict (id) do nothing;
+
+revoke all on public.seller_auth from public, anon, authenticated;
+
+-- Helper: safely read a text[] out of the JSON payload.
+create or replace function public.seller_text_array(p jsonb, k text)
+returns text[]
+language sql
+immutable
+set search_path = public
+as $$
+  select case
+    when jsonb_typeof(coalesce(p -> k, 'null'::jsonb)) = 'array'
+      then coalesce(
+        (select array_agg(elem)
+           from jsonb_array_elements_text(p -> k) as elem
+          where elem is not null and elem <> ''),
+        '{}'::text[])
+    else '{}'::text[]
+  end;
+$$;
+
+revoke all on function public.seller_text_array(jsonb, text) from public;
+
+-- Save (insert or update) one product. Returns the saved row as JSON so
+-- the browser learns the real id of a newly inserted product.
+create or replace function public.seller_upsert_product(p_key text, p_product jsonb)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_id bigint := null;
+  v_row public.products;
+begin
+  if not exists (select 1 from public.seller_auth where seller_key = p_key) then
+    raise exception 'Invalid seller key.' using errcode = '42501';
+  end if;
+
+  if jsonb_typeof(coalesce(p_product -> 'id', 'null'::jsonb)) <> 'null' then
+    begin
+      v_id := (p_product ->> 'id')::bigint;
+    exception when others then
+      v_id := null; -- browser-only ids like 'p-1712345' are not table rows
+    end;
+  end if;
+
+  if v_id is not null and exists (select 1 from public.products where id = v_id) then
+    update public.products set
+      dept           = coalesce(nullif(p_product ->> 'dept', ''), dept),
+      collection     = nullif(p_product ->> 'collection', ''),
+      name           = coalesce(nullif(p_product ->> 'name', ''), name),
+      description    = p_product ->> 'description',
+      price_ghs      = coalesce(nullif(p_product ->> 'price_ghs', '')::numeric, price_ghs),
+      compare_at_ghs = nullif(p_product ->> 'compare_at_ghs', '')::numeric,
+      flash_sale     = coalesce((p_product ->> 'flash_sale')::boolean, false),
+      sizes          = public.seller_text_array(p_product, 'sizes'),
+      colors         = public.seller_text_array(p_product, 'colors'),
+      badge          = nullif(p_product ->> 'badge', ''),
+      in_stock       = coalesce((p_product ->> 'in_stock')::boolean, true),
+      sort_order     = coalesce(nullif(p_product ->> 'sort_order', '')::int, sort_order),
+      image          = nullif(p_product ->> 'image', ''),
+      images         = public.seller_text_array(p_product, 'images')
+    where id = v_id
+    returning * into v_row;
+  else
+    insert into public.products
+      (dept, collection, name, description, price_ghs, compare_at_ghs, flash_sale,
+       sizes, colors, badge, in_stock, sort_order, image, images)
+    values
+      (coalesce(nullif(p_product ->> 'dept', ''), 'fashion'),
+       nullif(p_product ->> 'collection', ''),
+       coalesce(nullif(p_product ->> 'name', ''), 'Untitled'),
+       p_product ->> 'description',
+       coalesce(nullif(p_product ->> 'price_ghs', '')::numeric, 0),
+       nullif(p_product ->> 'compare_at_ghs', '')::numeric,
+       coalesce((p_product ->> 'flash_sale')::boolean, false),
+       public.seller_text_array(p_product, 'sizes'),
+       public.seller_text_array(p_product, 'colors'),
+       nullif(p_product ->> 'badge', ''),
+       coalesce((p_product ->> 'in_stock')::boolean, true),
+       coalesce(nullif(p_product ->> 'sort_order', '')::int, 0),
+       nullif(p_product ->> 'image', ''),
+       public.seller_text_array(p_product, 'images'))
+    returning * into v_row;
+  end if;
+
+  return to_jsonb(v_row);
+end;
+$$;
+
+revoke all on function public.seller_upsert_product(text, jsonb) from public;
+grant execute on function public.seller_upsert_product(text, jsonb) to anon, authenticated;
+
+-- Delete one product. Browser-only ids (non-numeric) simply return false —
+-- there is nothing in the table to delete.
+create or replace function public.seller_delete_product(p_key text, p_id text)
+returns boolean
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  if not exists (select 1 from public.seller_auth where seller_key = p_key) then
+    raise exception 'Invalid seller key.' using errcode = '42501';
+  end if;
+
+  if p_id ~ '^[0-9]+$' then
+    delete from public.products where id = p_id::bigint;
+    return true;
+  end if;
+
+  return false;
+end;
+$$;
+
+revoke all on function public.seller_delete_product(text, text) from public;
+grant execute on function public.seller_delete_product(text, text) to anon, authenticated;
+
+-- ---------------------------------------------------------------
+-- Real stock: September 2026 market arrivals.
+-- Idempotent — each row is only inserted if the name is not there yet.
+-- Photos currently point at the shared placeholder; when the edited
+-- listing photos land in assets/products/, update image/images here
+-- (or edit the listing in Seller Center) and re-run.
 -- ---------------------------------------------------------------
 
 insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'streetwear', 'Brooklyn Crop Set', 'A soft two-piece crop top and joggers set for easy street days.', 180, array['XS','S','M','L','XL'], array['Black','White'], null, true, 1, 'assets/products/fashion-crop-set.jpg'
-where not exists (select 1 from public.products where name = 'Brooklyn Crop Set');
+  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image, images)
+select 'fashion', 'streetwear', 'Olive Dotted Fringe Two-Piece Set',
+       'A ribbed olive two-piece with tiny white dots: an easy round-neck top and a fringe-cut mini skirt that moves when you do.',
+       220, array['S','M','L'], array['Olive'], 'New', true, 30, '', '{}'
+where not exists (select 1 from public.products where name = 'Olive Dotted Fringe Two-Piece Set');
 
 insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'streetwear', 'Royal Oversized Tee', 'An oversized cotton tee in royal navy for a bold everyday look.', 90, array['XS','S','M','L','XL'], array['Royal Navy','White','Black'], null, true, 2, 'assets/products/fashion-royal-tee.jpg'
-where not exists (select 1 from public.products where name = 'Royal Oversized Tee');
+  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image, images)
+select 'fashion', 'streetwear', 'Striped Tee & Sparkle Skirt Set',
+       'A white tee with fine black stripes and a fringed neckline, paired with a black sparkle pencil skirt for day-to-night.',
+       190, array['S','M','L'], array['Black / White'], 'New', true, 31, '', '{}'
+where not exists (select 1 from public.products where name = 'Striped Tee & Sparkle Skirt Set');
 
 insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'modest', 'Modest Satin Maxi Dress', 'A relaxed satin maxi dress with long sleeves, made to move with you.', 260, array['XS','S','M','L','XL'], array['Emerald','Navy','Burgundy'], null, true, 3, 'assets/products/fashion-modest-maxi.jpg'
-where not exists (select 1 from public.products where name = 'Modest Satin Maxi Dress');
+  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image, images)
+select 'fashion', 'modest', 'Coral Floral Belted Maxi Dress',
+       'A breezy white maxi covered in coral florals, with a matching self-tie belt and a soft pleated skirt with a front split.',
+       240, array['M','L','XL'], array['Coral'], 'New', true, 32, '', '{}'
+where not exists (select 1 from public.products where name = 'Coral Floral Belted Maxi Dress');
 
 insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'modest', 'Everyday Modest Set', 'A long-line top and wide trousers set. Comfortable and easy to style.', 220, array['XS','S','M','L','XL'], array['Beige','Navy'], null, true, 4, 'assets/products/fashion-modest-set.jpg'
-where not exists (select 1 from public.products where name = 'Everyday Modest Set');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'thrift', 'Vintage Denim Blazer', 'A one-piece vintage denim blazer. Only one available, so it will not be repeated.', 140, array['M','L'], array['Grey Denim'], '1 of 1', true, 5, 'assets/products/fashion-denim-blazer.jpg'
-where not exists (select 1 from public.products where name = 'Vintage Denim Blazer');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'thrift', 'Classic Cream Blouse', 'A timeless cream blouse. Only one piece available.', 80, array['S','M'], array['Cream'], '1 of 1', true, 6, 'assets/products/fashion-cream-blouse.jpg'
-where not exists (select 1 from public.products where name = 'Classic Cream Blouse');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'jewelry', null, 'Crown Gold Ring', '24k gold plated ring with a small crown detail. Tarnish free.', 120, array[]::text[], array[]::text[], null, true, 7, 'assets/products/jewelry-crown-ring.jpg'
-where not exists (select 1 from public.products where name = 'Crown Gold Ring');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'jewelry', null, 'Estate Pearl Earrings', '18k plated drop earrings. Hypoallergenic and light on the ear.', 150, array[]::text[], array[]::text[], null, true, 8, 'assets/products/jewelry-pearl-earrings.jpg'
-where not exists (select 1 from public.products where name = 'Estate Pearl Earrings');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'jewelry', null, 'Woven Gold Necklace', 'A fine woven gold-toned chain. Tarnish free and good for daily wear.', 180, array[]::text[], array[]::text[], null, true, 9, 'assets/products/jewelry-woven-necklace.jpg'
-where not exists (select 1 from public.products where name = 'Woven Gold Necklace');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'jewelry', null, 'Velloura Charm Bangle', '18k plated adjustable bangle with a small crown charm.', 170, array[]::text[], array[]::text[], null, true, 10, 'assets/products/jewelry-charm-bangle.jpg'
-where not exists (select 1 from public.products where name = 'Velloura Charm Bangle');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'hair', null, 'Silky Straight Bundle (24 inch)', 'A single bundle of silky straight virgin hair. Sold as a bundle.', 480, array['12 inch','14 inch','16 inch','18 inch','20 inch','22 inch','24 inch'], array['Natural Black'], null, true, 11, 'assets/products/hair-virgin-bundle.jpg'
-where not exists (select 1 from public.products where name = 'Silky Straight Bundle (24 inch)');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'hair', null, 'Lace Closure (18 inch)', 'A transparent lace closure with straight hair for a natural finish.', 320, array['14 inch','16 inch','18 inch','20 inch'], array['Natural Black'], null, true, 12, 'assets/products/hair-closure.jpg'
-where not exists (select 1 from public.products where name = 'Lace Closure (18 inch)');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'wigs', null, 'Glueless Lace Front Wig (26 inch)', 'A long glueless lace front wig with a soft natural part.', 850, array['18 inch','20 inch','22 inch','24 inch','26 inch'], array['Natural Black','Honey Blonde'], null, true, 13, 'assets/products/wig-lace-front.jpg'
-where not exists (select 1 from public.products where name = 'Glueless Lace Front Wig (26 inch)');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'wigs', null, 'Sleek Bob Wig', 'A polished jet black bob wig with a clean, lightweight finish.', 650, array['10 inch','12 inch'], array['Jet Black','Brown'], null, true, 14, 'assets/products/wig-bob.jpg'
-where not exists (select 1 from public.products where name = 'Sleek Bob Wig');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'modest', 'Ivory Wrap Dress', 'A soft ivory wrap dress with a flattering tie waist. Easy to dress up or down.', 240, array['XS','S','M','L','XL'], array['Ivory'], null, true, 15, 'assets/products/fashion-ivory-wrap-dress.jpg'
-where not exists (select 1 from public.products where name = 'Ivory Wrap Dress');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'streetwear', 'Navy Wide-Leg Trousers', 'High-waist navy trousers with a relaxed wide leg. A polished streetwear staple.', 160, array['XS','S','M','L','XL'], array['Navy'], null, true, 16, 'assets/products/fashion-wide-leg-trousers.jpg'
-where not exists (select 1 from public.products where name = 'Navy Wide-Leg Trousers');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'fashion', 'streetwear', 'Burgundy Pleated Skirt', 'A modern burgundy pleated midi skirt with a soft movement.', 130, array['XS','S','M','L'], array['Burgundy'], null, true, 17, 'assets/products/fashion-pleated-skirt.jpg'
-where not exists (select 1 from public.products where name = 'Burgundy Pleated Skirt');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'jewelry', null, 'Gilded Hoop Earrings', 'Lightweight gold hoops for everyday wear. Tarnish free.', 95, array[]::text[], array[]::text[], null, true, 18, 'assets/products/jewelry-gold-hoops.jpg'
-where not exists (select 1 from public.products where name = 'Gilded Hoop Earrings');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'jewelry', null, 'Royal Pendant Necklace', 'A delicate gold pendant with a small round charm.', 200, array[]::text[], array[]::text[], null, true, 19, 'assets/products/jewelry-pendant-necklace.jpg'
-where not exists (select 1 from public.products where name = 'Royal Pendant Necklace');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'jewelry', null, 'Gold Link Bracelet', 'A clean gold link bracelet. Tarnish free and easy to layer.', 110, array[]::text[], array[]::text[], null, true, 20, 'assets/products/jewelry-link-bracelet.jpg'
-where not exists (select 1 from public.products where name = 'Gold Link Bracelet');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'hair', null, 'Deep Wave Bundle (18 inch)', 'A single bundle of deep wave virgin hair with a soft pattern.', 420, array['12 inch','14 inch','16 inch','18 inch','20 inch'], array['Natural Black'], null, true, 21, 'assets/products/hair-deep-wave-bundle.jpg'
-where not exists (select 1 from public.products where name = 'Deep Wave Bundle (18 inch)');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'hair', null, '4x4 Lace Closure (16 inch)', 'A 4x4 lace closure with natural wavy hair for a soft finish.', 280, array['14 inch','16 inch','18 inch'], array['Natural Black'], null, true, 22, 'assets/products/hair-4x4-closure.jpg'
-where not exists (select 1 from public.products where name = '4x4 Lace Closure (16 inch)');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'wigs', null, 'Body Wave Lace Front Wig (24 inch)', 'A long body wave lace front wig with a natural flow.', 780, array['18 inch','20 inch','22 inch','24 inch'], array['Natural Black','Dark Brown'], null, true, 23, 'assets/products/wig-body-wave.jpg'
-where not exists (select 1 from public.products where name = 'Body Wave Lace Front Wig (24 inch)');
-
-insert into public.products
-  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image)
-select 'wigs', null, 'Highlighted Bob Wig', 'A chic bob wig with soft honey highlights for a fresh finish.', 550, array['10 inch','12 inch'], array['Honey Brown','Jet Black'], null, true, 24, 'assets/products/wig-highlight-bob.jpg'
-where not exists (select 1 from public.products where name = 'Highlighted Bob Wig');
+  (dept, collection, name, description, price_ghs, sizes, colors, badge, in_stock, sort_order, image, images)
+select 'fashion', 'streetwear', 'Turquoise Stripe Applique Midi Dress',
+       'A ribbed sleeveless midi in bold turquoise and white stripes, with pearl flower appliques and a keyhole neckline.',
+       210, array['S','M','L'], array['Turquoise'], 'New', true, 33, '', '{}'
+where not exists (select 1 from public.products where name = 'Turquoise Stripe Applique Midi Dress');
