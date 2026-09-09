@@ -24,7 +24,7 @@ const LOCAL_PRODUCTS = [
     badge: "New",
     in_stock: true,
     sort_order: 30,
-    image: ""
+    image: "assets/products/olive-dotted-fringe-two-piece-set.jpg"
   },
   {
     id: "31",
@@ -38,7 +38,7 @@ const LOCAL_PRODUCTS = [
     badge: "New",
     in_stock: true,
     sort_order: 31,
-    image: ""
+    image: "assets/products/striped-tee-sparkle-skirt-set.jpg"
   },
   {
     id: "32",
@@ -52,7 +52,7 @@ const LOCAL_PRODUCTS = [
     badge: "New",
     in_stock: true,
     sort_order: 32,
-    image: ""
+    image: "assets/products/coral-floral-belted-maxi-dress.jpg"
   },
   {
     id: "33",
@@ -66,7 +66,7 @@ const LOCAL_PRODUCTS = [
     badge: "New",
     in_stock: true,
     sort_order: 33,
-    image: ""
+    image: "assets/products/turquoise-stripe-applique-midi-dress.jpg"
   },
   {
     id: "100",
@@ -515,6 +515,76 @@ const LOCAL_PRODUCTS = [
     in_stock: true,
     sort_order: 131,
     image: "assets/products/pink-bra-top-denim-mini-skirt.jpg"
+  },
+  {
+    id: "300",
+    dept: "fashion",
+    collection: "streetwear",
+    name: "Blue Polka-Dot Ruffle-Hem Dress",
+    description: "A blue polka-dot day dress with a ruffle hem and side ruffles, photographed at the market and cleaned for the rail.",
+    price_ghs: 290,
+    sizes: ["S", "M", "L"],
+    colors: ["Blue"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 300,
+    image: "assets/products/blue-polka-dot-ruffle-hem-dress.jpg"
+  },
+  {
+    id: "301",
+    dept: "fashion",
+    collection: "streetwear",
+    name: "Orange Alo Tee & Pleated Skirt Set",
+    description: "An orange alo-print tee with a matching orange pleated skirt - one co-ord, many outfits.",
+    price_ghs: 325,
+    sizes: ["S", "M", "L"],
+    colors: ["Orange"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 301,
+    image: "assets/products/orange-alo-tee-pleated-skirt-set.jpg"
+  },
+  {
+    id: "302",
+    dept: "fashion",
+    collection: "streetwear",
+    name: "Magenta Alo-Print Ruffle Dress",
+    description: "A magenta pink alo-print dress with a ruffle hem and a belted waist that holds its shape.",
+    price_ghs: 395,
+    sizes: ["S", "M", "L"],
+    colors: ["Pink"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 302,
+    image: "assets/products/magenta-alo-print-ruffle-dress.jpg"
+  },
+  {
+    id: "303",
+    dept: "fashion",
+    collection: "streetwear",
+    name: "Lilac Print Belted Midi Dress",
+    description: "A lilac printed midi with short sleeves and a self belt - easy office-to-evening wear.",
+    price_ghs: 295,
+    sizes: ["S", "M", "L"],
+    colors: ["Lilac"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 303,
+    image: "assets/products/lilac-print-belted-midi-dress.jpg"
+  },
+  {
+    id: "304",
+    dept: "fashion",
+    collection: "streetwear",
+    name: "Pink-White Stripe Keyhole Midi Dress",
+    description: "A pink and white striped sleeveless midi with a keyhole neckline and pearl flower appliques.",
+    price_ghs: 290,
+    sizes: ["S", "M", "L"],
+    colors: ["Pink", "White"],
+    badge: "New",
+    in_stock: true,
+    sort_order: 304,
+    image: "assets/products/pink-white-stripe-keyhole-midi-dress.jpg"
   },
   {
     id: "132",
