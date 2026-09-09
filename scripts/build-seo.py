@@ -144,6 +144,10 @@ def product_types(product: dict) -> list[str]:
     return out
 
 
+# Type slugs that currently have in-stock products; set by main() so chips,
+# footer links and pages only exist for types we actually sell.
+AVAILABLE_TYPES: set[str] = set()
+
 CHIP_LABEL = {
     "dresses": "Dresses",
     "skirts": "Skirts",
@@ -165,6 +169,7 @@ def type_footer_links(prefix: str) -> str:
     return "\n        ".join(
         f'<a href="{prefix}{t["file"]}">{CHIP_LABEL.get(slug, t["label"])}</a>'
         for slug, t in load_keywords()["types"].items()
+        if slug in AVAILABLE_TYPES
     )
 
 
@@ -283,6 +288,8 @@ def chips_html(prefix: str, active: str) -> str:
         cls = "chip active" if key == active else "chip"
         bits.append(f'<a class="{cls}" href="{prefix}{href}" data-collection="{key}">{label}</a>')
     for slug, t in load_keywords()["types"].items():
+        if slug not in AVAILABLE_TYPES:
+            continue
         cls = "chip active" if slug == active else "chip"
         bits.append(f'<a class="{cls}" href="{prefix}{t["file"]}">{CHIP_LABEL.get(slug, t["label"])}</a>')
     return "\n        ".join(bits)
@@ -736,7 +743,11 @@ def type_meta(slug: str, t: dict, items: list[dict], kw: dict) -> dict:
     inner = next(a for a in bands if a["band"].startswith("inner"))
     near = next(a for a in bands if a["band"].startswith("near"))
     far = next(a for a in bands if a["band"].startswith("the greater"))
-    others = [(CHIP_LABEL.get(s, tt["label"]), tt["file"]) for s, tt in kw["types"].items() if s != slug]
+    others = [
+        (CHIP_LABEL.get(s, tt["label"]), tt["file"])
+        for s, tt in kw["types"].items()
+        if s != slug and s in AVAILABLE_TYPES
+    ]
     desc = (
         f"{len(items)} {t['label'].lower()} in stock in Accra, {money(min(prices))} to {money(max(prices))}. "
         f"Also searched as {', '.join(terms[:3])}. Pay with MoMo or card."
@@ -793,6 +804,7 @@ def area_html(area: dict, products: list[dict], kw: dict, areas: list[dict]) -> 
     type_links = ", ".join(
         f'<a href="{t["file"]}">{CHIP_LABEL.get(s, t["label"]).lower()}</a>'
         for s, t in kw["types"].items()
+        if s in AVAILABLE_TYPES
     )
     title = f"Clothes delivery to {name}, Accra — {area['days']}, {fee_text} | VELLOURA"
     desc = (
@@ -847,6 +859,7 @@ def area_html(area: dict, products: list[dict], kw: dict, areas: list[dict]) -> 
     rail_chips = "".join(
         f'<a class="chip" href="{t["file"]}">{CHIP_LABEL.get(s, t["label"])}</a>'
         for s, t in kw["types"].items()
+        if s in AVAILABLE_TYPES
     ) + '<a class="chip" href="shop.html">All</a>'
     main = f'''    <nav class="breadcrumb" aria-label="Breadcrumb">
       <a href="index.html">Home</a>
@@ -895,17 +908,26 @@ def patch_footer_type_links():
         if path.name in skip:
             continue
         text = path.read_text()
-        changed = False
+        original = text
+        head, sep, footer = text.partition('<footer class="site-footer">')
+        if not sep:
+            continue
         for pre in ("", "../"):
+            # Drop stale type links first so the block always matches stock.
+            for slug, t in links.items():
+                for label in (CHIP_LABEL.get(slug, t["label"]), t["label"]):
+                    footer = footer.replace(f'<a href="{pre}{t["file"]}">{label}</a>\n        ', "")
+                    footer = footer.replace(f'<a href="{pre}{t["file"]}">{label}</a>', "")
             anchor = f'<a href="{pre}modest.html">Modest wear</a>'
-            if anchor in text and f"{pre}dresses.html" not in text:
+            if anchor in footer:
                 add = "\n        ".join(
                     f'<a href="{pre}{t["file"]}">{CHIP_LABEL.get(slug, t["label"])}</a>'
                     for slug, t in links.items()
+                    if slug in AVAILABLE_TYPES
                 )
-                text = text.replace(anchor, anchor + "\n        " + add, 1)
-                changed = True
-        if changed:
+                footer = footer.replace(anchor, anchor + "\n        " + add, 1)
+        text = head + sep + footer
+        if text != original:
             path.write_text(text)
 
 
@@ -1034,10 +1056,16 @@ def main():
             )
 
     # One landing page per product type that actually has stock.
+    type_items = {}
     for slug, t in kw["types"].items():
         items = [p for p in products if slug in product_types(p) and p.get("in_stock", True)]
         if items:
-            LANDINGS[f"type-{slug}"] = type_meta(slug, t, items, kw)
+            AVAILABLE_TYPES.add(slug)
+            type_items[slug] = (t, items)
+        else:
+            (ROOT / f"{slug}.html").unlink(missing_ok=True)
+    for slug, (t, items) in type_items.items():
+        LANDINGS[f"type-{slug}"] = type_meta(slug, t, items, kw)
 
     out_files = []
     for key in LANDINGS:
