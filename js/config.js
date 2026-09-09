@@ -23,7 +23,7 @@ export const CONFIG = Object.freeze({
   // seller_delete_product) in supabase/setup.sql. Front-door only, like the
   // Seller Center password — change it HERE and in the seller_auth table
   // together before launch.
-  sellerKey: "velloura-seller-2026-change-me",
+  sellerKey: "f0d60524a83ce5f25d98478fc3f227d21724a073c907b549",
 
   // Checkout payment. The customer sees "Pay"; Valmont is the processor.
   valmontPayUrl: "https://valmontpay.app",
