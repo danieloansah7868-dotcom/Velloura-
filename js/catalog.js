@@ -83,9 +83,11 @@ const LOCAL_PRODUCTS = [
     name: "Alo white tee & brown pleated skirt set",
     description: "Alo white tee & brown pleated skirt set. A matched co-ord from the September market drop - style the pieces together or mix them across your rail.",
     price_ghs: 250,
+    compare_at_ghs: 330,
+    flash_sale: true,
     sizes: ["S", "M", "L"],
     colors: ["White", "Brown"],
-    badge: "New",
+    badge: "Flash sale",
     in_stock: true,
     sort_order: 100,
     image: "assets/products/alo-white-tee-brown-pleated-skirt-set.jpg"
@@ -111,9 +113,11 @@ const LOCAL_PRODUCTS = [
     name: "Red ruched halter bodycon dress",
     description: "Red ruched halter bodycon dress. An easy pull-on piece from the September market drop, photographed exactly as it arrives.",
     price_ghs: 275,
+    compare_at_ghs: 360,
+    flash_sale: true,
     sizes: ["S", "M", "L", "XL"],
     colors: ["Red"],
-    badge: "New",
+    badge: "Flash sale",
     in_stock: true,
     sort_order: 102,
     image: "assets/products/red-ruched-halter-bodycon-dress.jpg"
@@ -167,9 +171,11 @@ const LOCAL_PRODUCTS = [
     name: "Black lace shrug & patchwork skirt set",
     description: "Black lace shrug & patchwork skirt set. A matched co-ord from the September market drop - style the pieces together or mix them across your rail.",
     price_ghs: 320,
+    compare_at_ghs: 420,
+    flash_sale: true,
     sizes: ["S", "M", "L"],
     colors: ["Black"],
-    badge: "New",
+    badge: "Flash sale",
     in_stock: true,
     sort_order: 106,
     image: "assets/products/black-lace-shrug-patchwork-skirt-set.jpg"
@@ -3897,7 +3903,7 @@ const LOCAL_PRODUCTS = [
 ];
 
 let productsCache = null;
-const PRODUCTS_KEY = "velloura_products_v5";
+const PRODUCTS_KEY = "velloura_products_v6";
 
 function readStore() {
   try {
