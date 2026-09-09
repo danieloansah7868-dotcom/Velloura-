@@ -1781,20 +1781,6 @@ const LOCAL_PRODUCTS = [
     image: "assets/products/pink-top-distressed-jeans-set-with-cap.jpg"
   },
   {
-    id: "216",
-    dept: "fashion",
-    collection: "modest",
-    name: "Pink strapless maxi dress",
-    description: "Pink strapless maxi dress. An easy pull-on piece from the September market drop, photographed exactly as it arrives.",
-    price_ghs: 235,
-    sizes: ["S", "M", "L", "XL"],
-    colors: ["Pink"],
-    badge: "New",
-    in_stock: true,
-    sort_order: 216,
-    image: "assets/products/pink-strapless-maxi-dress.jpg"
-  },
-  {
     id: "217",
     dept: "fashion",
     collection: "modest",
