@@ -134,7 +134,22 @@ export const TYPES = {
       "tailored pants", "office trousers", "office wear"
     ],
     phrases: ["trousers price in Ghana", "buy pants in Accra", "office trousers Accra"]
+  },
+  shoes: {
+    slug: "shoes",
+    file: "shoes.html",
+    label: "Shoes & sandals",
+    h1: "Shoes and sandals for women in Accra",
+    terms: [
+      "shoes", "sandals", "slides", "sliders", "loafers", "heels", "mules",
+      "clogs", "flip flops", "flip-flops", "sneakers", "wedges", "footwear"
+    ],
+    phrases: [
+      "sandals price in Ghana", "buy shoes in Accra", "slides for women Accra",
+      "office shoes Ghana", "flat sandals Accra"
+    ]
   }
+
 };
 
 // Derive the type(s) of a product from its own name and description, so new
@@ -143,6 +158,7 @@ export function productTypes(product) {
   const text = `${product?.name || ""} ${product?.description || ""}`.toLowerCase();
   const out = [];
   const has = (...needles) => needles.some((needle) => text.includes(needle));
+  if (has("sandals", "slides", "loafers", "heels", "mules", "clogs", "flip-flops", "flip flops", "sneakers", "wedges", "footwear")) out.push("shoes");
   if (has("dress", "maxi", "gown")) out.push("dresses");
   if (has("skirt")) out.push("skirts");
   if (has("set", "two-piece", "two piece", "co-ord")) out.push("sets");

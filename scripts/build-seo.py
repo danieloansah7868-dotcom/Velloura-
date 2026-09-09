@@ -131,6 +131,8 @@ def product_types(product: dict) -> list[str]:
     def has(*needles) -> bool:
         return any(n in text for n in needles)
 
+    if has("sandals", "slides", "loafers", "heels", "mules", "clogs", "flip-flops", "flip flops", "sneakers", "wedges", "footwear"):
+        out.append("shoes")
     if has("dress", "maxi", "gown"):
         out.append("dresses")
     if has("skirt"):
@@ -154,9 +156,11 @@ CHIP_LABEL = {
     "sets": "Sets",
     "tops": "Tops",
     "trousers": "Trousers",
+    "shoes": "Shoes & sandals",
 }
 
 TYPE_SYN = {
+    "shoes": "slides, sandals & loafers",
     "dresses": "gowns & maxi dresses",
     "skirts": "midi & office skirts",
     "sets": "two-piece & co-ord sets",
