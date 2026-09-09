@@ -73,6 +73,110 @@ export const CATEGORIES = {
   }
 };
 
+// Product-type vocabulary: the thing itself, in the words customers type.
+// Each type maps to a generated landing page (<slug>.html) built by
+// scripts/build-seo.py from live catalogue data, and to a search boost below.
+export const TYPES = {
+  dresses: {
+    slug: "dresses",
+    file: "dresses.html",
+    label: "Dresses",
+    h1: "Dresses and gowns for women in Accra",
+    terms: [
+      "dress", "dresses", "gown", "gowns", "maxi", "maxi dress", "midi",
+      "midi dress", "wrap dress", "church dress", "sunday dress", "office dress", "office wear"
+    ],
+    phrases: [
+      "dress price in Ghana", "buy gown in Accra", "church dress Accra",
+      "office wear for women Accra", "maxi dress Ghana"
+    ]
+  },
+  skirts: {
+    slug: "skirts",
+    file: "skirts.html",
+    label: "Skirts",
+    h1: "Skirts for women in Accra",
+    terms: [
+      "skirt", "skirts", "midi skirt", "pleated skirt", "pencil skirt",
+      "office skirt", "glitter skirt", "office wear"
+    ],
+    phrases: ["buy skirt in Accra", "skirt price in Ghana", "office skirt Accra"]
+  },
+  sets: {
+    slug: "sets",
+    file: "sets.html",
+    label: "Two-piece sets",
+    h1: "Two-piece sets and co-ords in Accra",
+    terms: [
+      "set", "sets", "two-piece", "two piece", "co-ord", "coord", "co ord",
+      "crop set", "modest set", "matching set"
+    ],
+    phrases: ["two piece set Accra", "co-ord set Ghana", "buy set wear Accra"]
+  },
+  tops: {
+    slug: "tops",
+    file: "tops.html",
+    label: "Tops and tees",
+    h1: "Tops, tees and blouses for women in Accra",
+    terms: [
+      "top", "tops", "tee", "tees", "tshirt", "t-shirt", "shirt", "shirts",
+      "blouse", "crop top", "oversized tee", "office wear"
+    ],
+    phrases: ["buy tee in Accra", "blouse price in Ghana", "office shirt for women Accra"]
+  },
+  trousers: {
+    slug: "trousers",
+    file: "trousers.html",
+    label: "Trousers",
+    h1: "Trousers for women in Accra",
+    terms: [
+      "trousers", "trouser", "pants", "wide-leg", "wide leg", "joggers",
+      "tailored pants", "office trousers", "office wear"
+    ],
+    phrases: ["trousers price in Ghana", "buy pants in Accra", "office trousers Accra"]
+  },
+  shoes: {
+    slug: "shoes",
+    file: "shoes.html",
+    label: "Shoes & sandals",
+    h1: "Shoes and sandals for women in Accra",
+    terms: [
+      "shoes", "sandals", "slides", "sliders", "loafers", "heels", "mules",
+      "clogs", "flip flops", "flip-flops", "sneakers", "wedges", "footwear"
+    ],
+    phrases: [
+      "sandals price in Ghana", "buy shoes in Accra", "slides for women Accra",
+      "office shoes Ghana", "flat sandals Accra"
+    ]
+  }
+
+};
+
+// Derive the type(s) of a product from its own name and description, so new
+// catalogue rows land on the right landing pages without extra tagging.
+export function productTypes(product) {
+  const text = `${product?.name || ""} ${product?.description || ""}`.toLowerCase();
+  const out = [];
+  const has = (...needles) => needles.some((needle) => text.includes(needle));
+  if (has("sandals", "slides", "loafers", "heels", "mules", "clogs", "flip-flops", "flip flops", "sneakers", "wedges", "footwear")) out.push("shoes");
+  if (has("dress", "maxi", "gown")) out.push("dresses");
+  if (has("skirt")) out.push("skirts");
+  if (has("set", "two-piece", "two piece", "co-ord")) out.push("sets");
+  if (has("tee", "top", "blouse", "shirt")) out.push("tops");
+  if (has("trouser", "pants", "jogger")) out.push("trousers");
+  return out;
+}
+
+export function matchTypes(raw) {
+  const q = String(raw || "").trim().toLowerCase();
+  if (!q) return [];
+  return Object.keys(TYPES).filter((key) => {
+    const type = TYPES[key];
+    if (type.slug === q) return true;
+    return (type.terms || []).some((t) => termMatch(t, q));
+  });
+}
+
 export const CATEGORY_FILES = {
   fashion: "fashion.html",
   jewelry: "shop.html",
@@ -121,6 +225,14 @@ export function expandQuery(raw) {
     if (cat.collection) out.add(cat.collection);
     (cat.terms || []).forEach((t) => out.add(t.toLowerCase()));
   });
+  Object.values(TYPES).forEach((type) => {
+    const matched = type.slug === q
+      || (type.terms || []).some((t) => termMatch(t, q))
+      || (type.phrases || []).some((t) => termMatch(t, q) || words(t).includes(q));
+    if (!matched) return;
+    out.add(type.slug);
+    (type.terms || []).forEach((t) => out.add(t.toLowerCase()));
+  });
   return [...out];
 }
 
@@ -165,6 +277,13 @@ export function scoreProduct(product, raw) {
     const cat = CATEGORIES[key];
     if (product.dept === cat.dept) score += 5;
     if (cat.collection && product.collection === cat.collection) score += 8;
+  });
+
+  // Type synonyms ("gown" -> dresses) boost products of that type, but never
+  // outrank an exact name match.
+  const types = productTypes(product);
+  matchTypes(q).forEach((key) => {
+    if (types.includes(key)) score += 10;
   });
 
   return score;
