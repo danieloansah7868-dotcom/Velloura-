@@ -26,8 +26,10 @@ in the repository — the only key the website ships is the Supabase
    `supabase/migrations/20260909_auth_catalog_alignment.sql` there.
 2. Run the verification queries in §8 of the migration file (they also print
    automatically): 7 fashion rows, correct prices, orders untouched.
-3. Repeat the exact same file in **production**.
-4. Re-running the file is safe (idempotent).
+3. Run `supabase/catalog-seed.sql` in the same project (the 276 canonical
+   products, idempotent upserts keyed by name).
+4. Repeat the exact same two files in **production**.
+5. Re-running either file is safe (idempotent).
 
 ## 3. Enable auth
 
@@ -53,13 +55,15 @@ Run `supabase/bootstrap-admin.sql` in the SQL Editor after replacing
 
 ## 6. Confirm the storage bucket
 
-1. **Storage**: a public bucket named `products` now exists (created by the
+1. **Storage**: a public bucket named `product-images` now exists (created by the
    migration). Confirm it is **public** (Public bucket = enabled).
-2. **Storage → Policies** on `products` should show exactly four policies:
+2. **Storage → Policies** on `product-images` should show exactly four policies:
    `public read product images` (select, anon+authenticated),
    `admin upload product images` (insert, authenticated + `is_admin()`),
    `admin update product images` (update), `admin delete product images`
    (delete). All four are also in the migration file if they need re-creating.
+   The old permissive `seller can ...` policies (anyone could upload) are
+   removed by the migration.
 
 ## 7. Deploy the static site
 
@@ -78,7 +82,7 @@ Run in the SQL Editor unless noted. Anon checks can be run with `curl`:
 
 ```sql
 -- Exactly the 7 canonical fashion rows, with flash-sale columns:
-select count(*) from public.products;                       -- expect 7
+select count(*) from public.products;                       -- expect 276
 select name, price_ghs, compare_at_ghs, flash_sale
 from public.products order by sort_order;                   -- prices >= 150, compare_at > price where set
 select count(*) from public.products where dept <> 'fashion'; -- expect 0
@@ -86,15 +90,16 @@ select count(*) from public.products where dept <> 'fashion'; -- expect 0
 -- Admin allowlist (owner only):
 select * from public.admin_users;
 
--- No bookings table remains:
+-- No bookings table / seller-key table remains:
 select to_regclass('public.bookings');                      -- expect null
+select to_regclass('public.seller_auth');                   -- expect null
 ```
 
 Anon API checks (replace URL/key with the project's values):
 
 ```bash
 curl -s "$SUPABASE_URL/rest/v1/products?select=name" \
-  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY"            # 200 + 7 rows
+  -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY"            # 200 + 276 rows
 
 curl -s -X POST "$SUPABASE_URL/rest/v1/orders" \
   -H "apikey: $ANON_KEY" -H "Authorization: Bearer $ANON_KEY" \
@@ -166,8 +171,12 @@ On the deployed site:
 
 1. The demo Seller Center password was public. Ensure no account
    anywhere uses it; the new owner password must be new.
-2. **Settings → API**: confirm the publishable/anon key currently in
+2. An older setup.sql shipped a shared seller key (`sellerKey`) in the
+   repository and browser code. The migration deletes `seller_auth` and the
+   key-gated functions, so that key is dead — nothing checks it anymore.
+   Do not reintroduce it.
+3. **Settings → API**: confirm the publishable/anon key currently in
    `js/config.js` matches the dashboard; if anything sensitive was ever
    exposed, rotate keys there and redeploy with the new anon key.
-3. Confirm no service-role key appears in the repo, the site, or logs
-   (`scripts/validate.py --secrets` checks the repo locally).
+4. Confirm no service-role key appears in the repo, the site, or logs
+   (`python3 scripts/validate.py` checks the repo locally).

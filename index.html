@@ -4,16 +4,16 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Affordable clothes for women in Accra | VELLOURA</title>
-  <meta name="description" content="Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with MoMo or card.">
+  <meta name="description" content="Everyday dresses, gowns, two-piece sets, skirts, tees and trousers from Accra. Honest prices. Pay with MoMo or card.">
   <link rel="icon" type="image/png" href="assets/favicon.png">
   <link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/styles.css?v=6">
+  <link rel="stylesheet" href="css/styles.css?v=7">
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
   <link rel="canonical" href="https://vellouragh.com/">
-  <meta name="keywords" content="affordable clothes Accra, dress Ghana, streetwear, modest wear, VELLOURA">
+  <meta name="keywords" content="affordable clothes Accra, dress Ghana, gown, two-piece set, skirt, trousers, streetwear, modest wear, VELLOURA">
   <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -106,14 +106,14 @@
       </div>
       <div class="dept-grid">
         <a class="dept-card" href="streetwear.html">
-          <img src="assets/products/fashion-crop-set.jpg" alt="Streetwear" loading="lazy">
+          <img src="assets/products/black-cropped-cardigan-denim-skirt-set.jpg" alt="Streetwear" loading="lazy">
           <div class="dept-card-copy">
             <h3>Streetwear</h3>
             <p>Tees, sets, trousers, skirts.</p>
           </div>
         </a>
         <a class="dept-card" href="modest.html">
-          <img src="assets/products/fashion-modest-maxi.jpg" alt="Modest wear" loading="lazy">
+          <img src="assets/products/green-ruched-maxi-dress.jpg" alt="Modest wear" loading="lazy">
           <div class="dept-card-copy">
             <h3>Modest wear</h3>
             <p>Maxi dresses and long sets.</p>
@@ -142,6 +142,31 @@
       </div>
       <div class="product-grid" id="new-drops-grid">
         <p class="loading-note">Loading new arrivals...</p>
+      </div>
+    </section>
+
+    <section class="section" id="trending-section">
+      <div class="section-head">
+        <div>
+          <h2>Trending in Accra</h2>
+          <p class="muted">Popular sets, dresses, tops and streetwear available today</p>
+        </div>
+        <a href="shop.html">See all</a>
+      </div>
+      <div class="choice-group home-filter-chips" id="home-chips" role="tablist" aria-label="Filter trending items">
+        <button class="chip active" type="button" data-type="all">All</button>
+        <button class="chip" type="button" data-type="sets">Sets</button>
+        <button class="chip" type="button" data-type="dresses">Dresses</button>
+        <button class="chip" type="button" data-type="tops">Tops</button>
+        <button class="chip" type="button" data-type="skirts">Skirts</button>
+        <button class="chip" type="button" data-type="trousers">Trousers</button>
+        <button class="chip" type="button" data-type="shoes">Shoes</button>
+      </div>
+      <div class="product-grid" id="trending-grid">
+        <p class="loading-note">Loading trending styles...</p>
+      </div>
+      <div class="trending-cta" style="text-align: center; margin-top: 32px;">
+        <a class="btn btn-primary" href="shop.html" style="min-width: 220px; display: inline-flex;">Explore all 270+ pieces</a>
       </div>
     </section>
 
@@ -178,6 +203,12 @@
         <a href="shop.html">Clothes</a>
         <a href="streetwear.html">Streetwear</a>
         <a href="modest.html">Modest wear</a>
+        <a href="dresses.html">Dresses</a>
+        <a href="skirts.html">Skirts</a>
+        <a href="sets.html">Sets</a>
+        <a href="tops.html">Tops</a>
+        <a href="trousers.html">Trousers</a>
+        <a href="shoes.html">Shoes & sandals</a>
         <a href="wishlist.html">Saved items</a>
         <a href="cart-view.html">View Bag</a>
         <a href="track.html">Track order</a>
@@ -194,7 +225,8 @@
       </div>
       <div class="footer-bottom">
         <p>VELLOURA © 2026. Made with pride in Ghana.</p>
-      </div>
+        <p class="footer-credit">Built by <a href="https://valmontweb.com" target="_blank" rel="noopener">Valmont Web Services</a></p>
+</div>
     </div>
   </footer>
 
@@ -207,7 +239,7 @@
     <div class="cart-drawer-body" id="cart-drawer-body"></div>
   </aside>
 
-  <script src="js/ui.js" defer></script>
-  <script type="module" src="js/home.js?v=5"></script>
+  <script src="js/ui.js?v=3" defer></script>
+  <script type="module" src="js/home.js?v=7"></script>
 </body>
 </html>

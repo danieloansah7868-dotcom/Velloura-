@@ -3,14 +3,15 @@
 -- =====================================================================
 -- OWNER-RUN, in this order:
 --   1. Read §0 PREFLIGHT below and take a backup (Dashboard → Database →
---      Backups, or `supabase db dump`). §3 and §7 are DESTRUCTIVE.
+--      Backups, or `supabase db dump`). §3, §7 and §8 are DESTRUCTIVE.
 --   2. Apply this file to a STAGING project first, verify, then production.
---   3. Then follow DEPLOYMENT.md (create the owner user, run
+--   3. Then run supabase/catalog-seed.sql (the 276 canonical products).
+--   4. Then follow DEPLOYMENT.md (create the owner user, run
 --      supabase/bootstrap-admin.sql, run the live checks).
 --
 -- The file is IDEMPOTENT: re-running it produces the same end state
 -- (duplicate-policy and duplicate-constraint errors are pre-empted with
--- drop-if-exists statements, and the seed upserts update in place).
+-- drop-if-exists statements). catalog-seed.sql is likewise idempotent.
 --
 -- ROLLBACK: restore from the backup taken in step 1. There is no
 -- in-place rollback for dropped rows/tables; that is why the backup
@@ -23,12 +24,18 @@
 -- 0.1 Current products by department:
 --     select dept, count(*) from public.products group by dept order by dept;
 --
--- 0.2 Rows §3 will DELETE (obsolete jewelry/hair/wig/thrift seed rows):
+-- 0.2 Rows §3 will DELETE (obsolete placeholder seed rows — jewelry, hair,
+--     wigs, thrift and the original 7 fashion placeholders, which were
+--     replaced by the real-stock catalog in js/catalog.js):
 --     select id, name, dept, collection, price_ghs
 --     from public.products
 --     where dept in ('jewelry', 'hair', 'wigs')
 --        or collection = 'thrift'
---        or name in ('Vintage Denim Blazer', 'Classic Cream Blouse');
+--        or name in ('Brooklyn Crop Set', 'Oversized Navy Tee',
+--                    'Modest Satin Maxi Dress', 'Everyday Modest Set',
+--                    'Ivory Wrap Dress', 'Navy Wide-Leg Trousers',
+--                    'Burgundy Pleated Skirt', 'Vintage Denim Blazer',
+--                    'Classic Cream Blouse', 'Royal Oversized Tee');
 --     Optional backup copy of the whole table before running:
 --       create table public.products_backup_20260909 as
 --         select * from public.products;
@@ -104,6 +111,7 @@ create table if not exists public.products (
   in_stock boolean not null default true,
   sort_order int default 0,
   image text,
+  images text[] not null default '{}',
   constraint products_compare_at_check
     check (compare_at_ghs is null or compare_at_ghs > price_ghs)
 );
@@ -131,31 +139,43 @@ create table if not exists public.orders (
 alter table public.orders add column if not exists customer_email text;
 alter table public.orders add column if not exists payment text;
 
--- =====================================================================
--- §3 Products: flash-sale columns, catalog alignment, constraints
--- =====================================================================
-
+-- Products: gallery + flash-sale columns.
 alter table public.products add column if not exists compare_at_ghs numeric;
 alter table public.products add column if not exists flash_sale boolean not null default false;
+alter table public.products add column if not exists images text[] not null default '{}';
 
--- The old seed called this product "Royal Oversized Tee"; the catalog now
--- says "Oversized Navy Tee". Rename so the upsert below updates the same
--- row instead of creating a second one.
+-- Seed the gallery from the old single-image column where needed.
+update public.products
+   set images = array[image]
+ where coalesce(array_length(images, 1), 0) = 0
+   and image is not null
+   and image <> '';
+
+-- =====================================================================
+-- §3 Products cleanup (DESTRUCTIVE — see preflight §0.2/§0.3)
+-- =====================================================================
+
+-- The first seed called this product "Royal Oversized Tee"; align the name
+-- before the placeholder cleanup below (harmless if it does not exist).
 update public.products
 set name = 'Oversized Navy Tee'
 where name = 'Royal Oversized Tee'
   and not exists (select 1 from public.products p where p.name = 'Oversized Navy Tee');
 
--- DESTRUCTIVE (see preflight §0.2): remove obsolete seed products.
--- Jewelry, hair, wigs and thrift are no longer sold. Order history is
+-- Remove obsolete placeholder products: jewelry, hair, wigs and thrift are
+-- no longer sold, and the original 7 fashion placeholders were replaced by
+-- the real-stock catalog (supabase/catalog-seed.sql). Order history is
 -- untouched — orders keep their own item snapshots.
 delete from public.products
 where dept in ('jewelry', 'hair', 'wigs')
    or collection = 'thrift'
-   or name in ('Vintage Denim Blazer', 'Classic Cream Blouse');
+   or name in ('Brooklyn Crop Set', 'Oversized Navy Tee',
+               'Modest Satin Maxi Dress', 'Everyday Modest Set',
+               'Ivory Wrap Dress', 'Navy Wide-Leg Trousers',
+               'Burgundy Pleated Skirt', 'Vintage Denim Blazer',
+               'Classic Cream Blouse');
 
--- DESTRUCTIVE (see preflight §0.3): if an older non-idempotent seed ran
--- twice, keep one row per name (the lowest id).
+-- If an older non-idempotent seed ran twice, keep one row per name.
 delete from public.products p
 using public.products q
 where p.name = q.name
@@ -171,39 +191,8 @@ set compare_at_ghs = null
 where compare_at_ghs is not null
   and compare_at_ghs <= price_ghs;
 
--- Canonical 7 products (same content as supabase/catalog-seed.sql on
--- 2026-09-09; js/catalog.js is the source of truth going forward).
-insert into public.products
-  (id, dept, collection, name, description, price_ghs, compare_at_ghs, flash_sale,
-   sizes, colors, badge, in_stock, sort_order, image)
-overriding system value
-values
-  (1, 'fashion', 'streetwear', 'Brooklyn Crop Set', 'A soft two-piece crop top and joggers set for easy street days.', 180, 230, true, array['XS', 'S', 'M', 'L', 'XL'], array['Black', 'White'], 'Flash sale', true, 1, 'assets/products/fashion-crop-set.jpg'),
-  (2, 'fashion', 'streetwear', 'Oversized Navy Tee', 'An oversized cotton tee in navy. Everyday wear, nothing extra.', 150, 200, true, array['XS', 'S', 'M', 'L', 'XL'], array['Royal Navy', 'White', 'Black'], 'Flash sale', true, 2, 'assets/products/fashion-royal-tee.jpg'),
-  (3, 'fashion', 'modest', 'Modest Satin Maxi Dress', 'A relaxed satin maxi dress with long sleeves, made to move with you.', 260, null, false, array['XS', 'S', 'M', 'L', 'XL'], array['Emerald', 'Navy', 'Burgundy'], null, true, 3, 'assets/products/fashion-modest-maxi.jpg'),
-  (4, 'fashion', 'modest', 'Everyday Modest Set', 'A long-line top and wide trousers set. Comfortable and easy to style.', 220, null, false, array['XS', 'S', 'M', 'L', 'XL'], array['Beige', 'Navy'], null, true, 4, 'assets/products/fashion-modest-set.jpg'),
-  (15, 'fashion', 'modest', 'Ivory Wrap Dress', 'A soft ivory wrap dress with a flattering tie waist. Easy to dress up or down.', 240, null, false, array['XS', 'S', 'M', 'L', 'XL'], array['Ivory'], null, true, 15, 'assets/products/fashion-ivory-wrap-dress.jpg'),
-  (16, 'fashion', 'streetwear', 'Navy Wide-Leg Trousers', 'High-waist navy trousers with a relaxed wide leg. A polished streetwear staple.', 160, 200, true, array['XS', 'S', 'M', 'L', 'XL'], array['Navy'], 'Flash sale', true, 16, 'assets/products/fashion-wide-leg-trousers.jpg'),
-  (17, 'fashion', 'streetwear', 'Burgundy Pleated Skirt', 'A modern burgundy pleated midi skirt with a soft movement.', 150, 170, true, array['XS', 'S', 'M', 'L'], array['Burgundy'], 'Flash sale', true, 17, 'assets/products/fashion-pleated-skirt.jpg')
-on conflict (name) do update set
-  dept = excluded.dept,
-  collection = excluded.collection,
-  description = excluded.description,
-  price_ghs = excluded.price_ghs,
-  compare_at_ghs = excluded.compare_at_ghs,
-  flash_sale = excluded.flash_sale,
-  sizes = excluded.sizes,
-  colors = excluded.colors,
-  badge = excluded.badge,
-  in_stock = excluded.in_stock,
-  sort_order = excluded.sort_order,
-  image = excluded.image;
-
--- Keep the identity sequence ahead of the explicit ids above.
-select setval(
-  pg_get_serial_sequence('public.products', 'id'),
-  coalesce((select max(id) from public.products), 1)
-);
+-- The 276 canonical products are loaded by supabase/catalog-seed.sql
+-- (idempotent upserts keyed by name) — run it right after this file.
 
 -- Tighten constraints (drop+add keeps reruns deterministic).
 alter table public.products drop constraint if exists products_dept_check;
@@ -301,33 +290,45 @@ revoke all on function public.track_order(text, text) from public;
 grant execute on function public.track_order(text, text) to anon, authenticated;
 
 -- =====================================================================
--- §6 Storage: "products" bucket (public reads, admin-only writes)
+-- §6 Storage: "product-images" bucket. Public reads (the shop shows the
+-- photos); writes/deletes require an authenticated admin. This REPLACES
+-- the older permissive "seller can ..." policies, which allowed anyone
+-- holding the publishable key to upload.
 -- =====================================================================
 
 insert into storage.buckets (id, name, public)
-values ('products', 'products', true)
+values ('product-images', 'product-images', true)
 on conflict (id) do update set public = true;
 
+drop policy if exists "product images are public" on storage.objects; -- old name
 drop policy if exists "public read product images" on storage.objects;
 create policy "public read product images" on storage.objects
   for select to anon, authenticated
-  using (bucket_id = 'products');
+  using (bucket_id = 'product-images');
 
+drop policy if exists "seller can upload product images" on storage.objects; -- permissive, replaced
 drop policy if exists "admin upload product images" on storage.objects;
 create policy "admin upload product images" on storage.objects
   for insert to authenticated
-  with check (bucket_id = 'products' and public.is_admin());
+  with check (
+    bucket_id = 'product-images'
+    and name like 'products/%'
+    and name ~* '\.(jpe?g|png|webp|avif|gif)$'
+    and public.is_admin()
+  );
 
+drop policy if exists "seller can replace product images" on storage.objects; -- permissive, replaced
 drop policy if exists "admin update product images" on storage.objects;
 create policy "admin update product images" on storage.objects
   for update to authenticated
-  using (bucket_id = 'products' and public.is_admin())
-  with check (bucket_id = 'products' and public.is_admin());
+  using (bucket_id = 'product-images' and name like 'products/%' and public.is_admin())
+  with check (bucket_id = 'product-images' and name like 'products/%' and public.is_admin());
 
+drop policy if exists "seller can delete product images" on storage.objects; -- permissive, replaced
 drop policy if exists "admin delete product images" on storage.objects;
 create policy "admin delete product images" on storage.objects
   for delete to authenticated
-  using (bucket_id = 'products' and public.is_admin());
+  using (bucket_id = 'product-images' and name like 'products/%' and public.is_admin());
 
 -- =====================================================================
 -- §7 DESTRUCTIVE: drop the unused hair-booking table.
@@ -339,13 +340,31 @@ create policy "admin delete product images" on storage.objects
 drop table if exists public.bookings;
 
 -- =====================================================================
--- §8 VERIFY (results print in the SQL Editor)
+-- §8 DESTRUCTIVE: remove the shared-key seller auth from the older
+-- setup.sql. Product writes now go through the admin RLS policies above
+-- (Supabase Auth + public.admin_users). If the old seller_key was ever
+-- public, it is dead after this section — nothing checks it anymore.
 -- =====================================================================
 
-select id, name, dept, collection, price_ghs, compare_at_ghs, flash_sale, in_stock
-from public.products
-order by sort_order;
+drop table if exists public.seller_auth;
+
+drop function if exists public.seller_upsert_product(text, jsonb);
+drop function if exists public.seller_delete_product(text, text);
+drop function if exists public.seller_delete_product(text, bigint);
+drop function if exists public.seller_text_array(jsonb, text);
+
+-- =====================================================================
+-- §9 VERIFY (results print in the SQL Editor)
+-- =====================================================================
+
+select count(*) as products_left, count(*) filter (where dept <> 'fashion') as non_fashion
+from public.products;
 
 select count(*) as orders_kept from public.orders;
 
+select to_regclass('public.bookings') as bookings_table;       -- expect null
+select to_regclass('public.seller_auth') as seller_auth_table; -- expect null
+
 commit;
+
+-- Next: run supabase/catalog-seed.sql, then DEPLOYMENT.md steps 3-8.

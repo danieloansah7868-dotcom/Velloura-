@@ -2,24 +2,24 @@
 -- VELLOURA Supabase bootstrap schema (FRESH projects only)
 -- =====================================================================
 -- Run this file in your Supabase project's SQL Editor, then run
--- supabase/catalog-seed.sql to load the 7 canonical products.
+-- supabase/catalog-seed.sql to load the canonical products.
 --
 -- ALREADY HAVE TABLES? Do NOT run this file. Run the incremental
 -- migration in supabase/migrations/ instead.
 --
 -- Seller Center login uses Supabase Auth. After this file:
 --   1. Authentication -> Providers -> Email: enabled.
---      Turn OFF "Allow new users to sign up" unless you want customer
---      accounts (the storefront works fully without them).
---   2. Create the owner's user (Authentication -> Users -> Add user),
+--      Turn OFF "Allow new users to sign up" unless customer accounts
+--      are wanted (checkout and order tracking work without them).
+--   2. Create the owner's user (Authentication -> Users -> Add user)
 --      with a strong password.
 --   3. Run supabase/bootstrap-admin.sql to allowlist that user.
 --
--- Customer order tracking uses the track_order(code, phone) RPC.
--- Anonymous visitors can: read products, insert orders, track their
--- order, read public product images. Nothing else.
--- Seller Center (authenticated users listed in public.admin_users) can:
--- read/write products, read/update orders, upload product photos.
+-- Access model:
+--   Anonymous visitors can: read products, insert orders (status 'new'),
+--   track their own order (track_order RPC), read public listing photos.
+--   Authenticated admins (listed in public.admin_users) can: read/write
+--   products, read/update orders, upload/replace/delete listing photos.
 
 -- ---------------------------------------------------------------
 -- Admin allowlist helper (must exist before the table policies)
@@ -76,6 +76,7 @@ create table if not exists public.products (
   in_stock boolean not null default true,
   sort_order int default 0,
   image text,
+  images text[] not null default '{}',
   constraint products_compare_at_check
     check (compare_at_ghs is null or compare_at_ghs > price_ghs)
 );
@@ -105,6 +106,7 @@ create table if not exists public.orders (
 
 alter table public.products enable row level security;
 
+drop policy if exists "public can read products" on public.products; -- old name
 drop policy if exists "public read products" on public.products;
 create policy "public read products" on public.products
   for select to anon, authenticated
@@ -130,6 +132,7 @@ alter table public.orders enable row level security;
 
 -- Public inserts are pinned to the safe initial status; anonymous
 -- visitors can never read, update or delete orders.
+drop policy if exists "public can place orders" on public.orders; -- old name
 drop policy if exists "public place orders" on public.orders;
 create policy "public place orders" on public.orders
   for insert to anon, authenticated
@@ -174,32 +177,43 @@ revoke all on function public.track_order(text, text) from public;
 grant execute on function public.track_order(text, text) to anon, authenticated;
 
 -- ---------------------------------------------------------------
--- Storage: "products" bucket (public reads, admin-only writes)
+-- Storage: "product-images" bucket. Public reads (the shop shows the
+-- photos); writes/deletes require an authenticated admin.
+-- Uploads live under products/ in the bucket.
 -- ---------------------------------------------------------------
 
 insert into storage.buckets (id, name, public)
-values ('products', 'products', true)
+values ('product-images', 'product-images', true)
 on conflict (id) do update set public = true;
 
+drop policy if exists "product images are public" on storage.objects;
 drop policy if exists "public read product images" on storage.objects;
 create policy "public read product images" on storage.objects
   for select to anon, authenticated
-  using (bucket_id = 'products');
+  using (bucket_id = 'product-images');
 
+drop policy if exists "seller can upload product images" on storage.objects; -- old permissive version
 drop policy if exists "admin upload product images" on storage.objects;
 create policy "admin upload product images" on storage.objects
   for insert to authenticated
-  with check (bucket_id = 'products' and public.is_admin());
+  with check (
+    bucket_id = 'product-images'
+    and name like 'products/%'
+    and name ~* '\.(jpe?g|png|webp|avif|gif)$'
+    and public.is_admin()
+  );
 
+drop policy if exists "seller can replace product images" on storage.objects; -- old permissive version
 drop policy if exists "admin update product images" on storage.objects;
 create policy "admin update product images" on storage.objects
   for update to authenticated
-  using (bucket_id = 'products' and public.is_admin())
-  with check (bucket_id = 'products' and public.is_admin());
+  using (bucket_id = 'product-images' and name like 'products/%' and public.is_admin())
+  with check (bucket_id = 'product-images' and name like 'products/%' and public.is_admin());
 
+drop policy if exists "seller can delete product images" on storage.objects; -- old permissive version
 drop policy if exists "admin delete product images" on storage.objects;
 create policy "admin delete product images" on storage.objects
   for delete to authenticated
-  using (bucket_id = 'products' and public.is_admin());
+  using (bucket_id = 'product-images' and name like 'products/%' and public.is_admin());
 
 -- Next: run supabase/catalog-seed.sql to load the canonical products.

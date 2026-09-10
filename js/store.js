@@ -129,50 +129,67 @@ export async function placeOrder(payload) {
     payment: payload.payment || ""
   };
 
-  function saveLocalOrder(currentRecord) {
+  function writeOrder(currentRecord) {
     const orders = readJson(ORDERS_KEY, []);
-    orders.push({ ...currentRecord, created_at: currentRecord.created_at || new Date().toISOString() });
+    const idx = orders.findIndex((o) => o.order_code === currentRecord.order_code);
+    const stamped = { ...currentRecord, created_at: currentRecord.created_at || new Date().toISOString() };
+    if (idx === -1) orders.push(stamped);
+    else orders[idx] = stamped;
     writeJson(ORDERS_KEY, orders);
   }
 
+  // The order is always persisted locally FIRST so the customer never loses
+  // it — even if the remote insert below fails or the app is offline.
+  writeOrder(record);
+
   if (isDemoMode) {
-    saveLocalOrder(record);
     return { code, record };
   }
 
-  const ready = await waitForSupabase();
-  if (!ready) throw new Error("Supabase JS library is not loaded.");
-  const sb = getSupabaseClient();
-  if (!sb) throw new Error("Supabase is not connected.");
-  let lastError = null;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const currentCode = attempt === 0 ? code : makeOrderCode();
-    const currentRecord = { ...record, order_code: currentCode };
-    const slimRecord = {
-      order_code: currentRecord.order_code,
-      customer_name: currentRecord.customer_name,
-      phone: currentRecord.phone,
-      area: currentRecord.area,
-      neighborhood: currentRecord.neighborhood,
-      notes: currentRecord.notes,
-      items: currentRecord.items,
-      items_total: currentRecord.items_total,
-      delivery_fee: currentRecord.delivery_fee,
-      total_ghs: currentRecord.total_ghs,
-      status: currentRecord.status
-    };
-    let { error } = await sb.from("orders").insert(currentRecord);
-    if (error && /column|schema cache|PGRST204/i.test(`${error.message || ""} ${error.code || ""}`)) {
-      ({ error } = await sb.from("orders").insert(slimRecord));
+  // Remote persistence is best-effort. Network drops, RLS rejections and
+  // missing tables are caught here so they never throw an uncaught error or
+  // block the checkout — the customer keeps their order code and proceeds.
+  try {
+    const ready = await waitForSupabase();
+    if (!ready) return { code, record };
+    const sb = getSupabaseClient();
+    if (!sb) return { code, record };
+
+    let lastError = null;
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const currentCode = attempt === 0 ? code : makeOrderCode();
+      const currentRecord = { ...record, order_code: currentCode };
+      const slimRecord = {
+        order_code: currentRecord.order_code,
+        customer_name: currentRecord.customer_name,
+        phone: currentRecord.phone,
+        area: currentRecord.area,
+        neighborhood: currentRecord.neighborhood,
+        notes: currentRecord.notes,
+        items: currentRecord.items,
+        items_total: currentRecord.items_total,
+        delivery_fee: currentRecord.delivery_fee,
+        total_ghs: currentRecord.total_ghs,
+        status: currentRecord.status
+      };
+      let { error } = await sb.from("orders").insert(currentRecord);
+      if (error && /column|schema cache|PGRST204/i.test(`${error.message || ""} ${error.code || ""}`)) {
+        ({ error } = await sb.from("orders").insert(slimRecord));
+      }
+      if (!error) {
+        // Reflect the (possibly regenerated) code in local storage too.
+        if (currentCode !== code) writeOrder(currentRecord);
+        return { code: currentCode, record: currentRecord };
+      }
+      lastError = error;
+      if (!/unique|duplicate|23505/i.test(`${error.message || ""} ${error.code || ""}`)) break;
     }
-    if (!error) {
-      saveLocalOrder(currentRecord);
-      return { code: currentCode, record: currentRecord };
-    }
-    lastError = error;
-    if (!/unique|duplicate|23505/i.test(`${error.message || ""} ${error.code || ""}`)) break;
+    console.error("Order saved locally; remote sync skipped:", lastError);
+    return { code, record };
+  } catch (err) {
+    console.error("Order saved locally; remote sync failed:", err);
+    return { code, record };
   }
-  throw lastError || new Error("Could not save the order.");
 }
 
 export function listOrdersLocal() {

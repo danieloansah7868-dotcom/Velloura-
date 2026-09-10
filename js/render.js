@@ -11,6 +11,7 @@ function defaultOption(values) {
 }
 
 export function productCardHTML(product) {
+  const cover = getProductImage(product);
   const price = formatGHS(product.price_ghs);
   const off = discountPercent(product);
   const was = Number(product.compare_at_ghs || 0);
@@ -42,7 +43,9 @@ export function productCardHTML(product) {
       </button>
       <a class="product-card-link" href="${productPageHref(product)}" aria-label="View ${escapeHtml(product.name)}">
         <div class="product-media-wrap">
-          <img src="${escapeHtml(getProductImage(product))}" alt="${escapeHtml(product.name)}" loading="lazy">
+          ${cover
+            ? `<img src="${escapeHtml(cover)}" alt="${escapeHtml(product.name)}" loading="lazy" decoding="async">`
+            : `<div class="media-fallback" role="img" aria-label="Photo coming soon"><span>VELLOURA</span></div>`}
           ${badge}
         </div>
         <div class="product-card-body">

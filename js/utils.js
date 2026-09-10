@@ -57,19 +57,37 @@ export function stringId(value) {
   return String(value == null ? "" : value);
 }
 
+export function isUsableImageSrc(value) {
+  const image = String(value || "");
+  return Boolean(image) && (
+    /^data:image\//i.test(image) ||
+    /^(https?:)?\/\//i.test(image) ||
+    /^blob:/i.test(image) ||
+    /\.(svg|png|jpe?g|webp|avif|gif)(\?.*)?$/i.test(image)
+  );
+}
+
 export function getProductImage(product) {
   const image = product.image ? String(product.image) : "";
-  if (
-    image &&
-    (
-      /^data:image\//i.test(image) ||
-      /^(https?:)?\/\//i.test(image) ||
-      /\.(svg|png|jpe?g|webp|avif)(\?.*)?$/i.test(image)
-    )
-  ) {
-    return rootHref(image);
-  }
-  return rootHref("assets/placeholder-fashion.svg");
+  if (isUsableImageSrc(image)) return rootHref(image);
+  return "";
+}
+
+// Every photo on a listing: cover first, then the rest. Empty when the
+// listing has no photo yet — renderers show a brand tile, never a fake photo.
+export function getProductImages(product) {
+  const extra = Array.isArray(product?.images) ? product.images : [];
+  const cover = product?.image ? String(product.image) : "";
+  const out = [];
+  const seen = new Set();
+  [cover, ...extra.map(String)].forEach((src) => {
+    if (!isUsableImageSrc(src)) return;
+    const href = rootHref(src);
+    if (seen.has(href)) return;
+    seen.add(href);
+    out.push(href);
+  });
+  return out;
 }
 
 export function getDaysAhead(count) {

@@ -139,7 +139,7 @@ def main() -> None:
     print("1. Catalog integrity (js/catalog.js)")
     print("=" * 68)
     products = build_seo.load_products()
-    check("catalog count == 7", len(products) == 7, f"{len(products)} products")
+    check("catalog is non-empty (source of truth)", len(products) > 0, f"{len(products)} products")
     check("unique ids", len({p["id"] for p in products}) == len(products))
     check("unique names", len({p["name"] for p in products}) == len(products))
     check("unique sort orders", len({p["sort_order"] for p in products}) == len(products))
@@ -162,10 +162,12 @@ def main() -> None:
         and not float(p["compare_at_ghs"]) > float(p["price_ghs"])
     ]
     check("compare_at null or > price", not bad_compare, ", ".join(bad_compare))
-    missing_img = [
-        p["image"] for p in products if not (ROOT / p["image"]).exists()
-    ]
-    check("all catalog images exist", not missing_img, ", ".join(missing_img))
+    missing_img = []
+    for p in products:
+        for src in [p.get("image")] + list(p.get("images") or []):
+            if src and src.startswith("assets/") and not (ROOT / src).exists():
+                missing_img.append(f"{p['name']}: {src}")
+    check("all catalog images exist", not missing_img, "; ".join(missing_img[:4]))
 
     print("=" * 68)
     print("2. SQL/catalog parity")
@@ -178,32 +180,33 @@ def main() -> None:
     check("catalog-seed.sql matches catalog.js", result.returncode == 0, result.stdout.strip() or result.stderr.strip())
 
     migration = (ROOT / "supabase" / "migrations" / "20260909_auth_catalog_alignment.sql").read_text()
-    mig_rows = {}
-    row_re = re.compile(
-        r"^\s*\((\d+), 'fashion', '(?:streetwear|modest)', '([^']+)', '.*?', "
-        r"([\d.]+|null), ([\d.]+|null), (true|false),",
-        re.M,
-    )
-    for m in row_re.finditer(migration):
-        mig_rows[m.group(2)] = (m.group(3), m.group(4), m.group(5))
-    check("migration seeds exactly 7 products", len(mig_rows) == 7, str(len(mig_rows)))
-    mismatches = []
-    for p in products:
-        expected = (
-            str(p["price_ghs"]),
-            "null" if p.get("compare_at_ghs") is None else str(p["compare_at_ghs"]),
-            "true" if p.get("flash_sale") is True else "false",
-        )
-        if mig_rows.get(p["name"]) != expected:
-            mismatches.append(f"{p['name']}: db={mig_rows.get(p['name'])} catalog={expected}")
-    check("migration rows match catalog.js", not mismatches, "; ".join(mismatches))
+    check("migration has admin allowlist + is_admin()",
+          "public.admin_users" in migration and "public.is_admin()" in migration)
+    check("migration has least-privilege RLS policies",
+          '"admin insert products"' in migration and '"public place orders"' in migration
+          and '"admin read orders"' in migration)
+    check("migration adds images/compare/flash columns",
+          "add column if not exists images text[]" in migration
+          and "add column if not exists compare_at_ghs numeric" in migration
+          and "add column if not exists flash_sale boolean not null default false" in migration)
+    check("migration drops bookings + seller-key auth",
+          "drop table if exists public.bookings" in migration
+          and "drop table if exists public.seller_auth" in migration
+          and "drop function if exists public.seller_upsert_product" in migration)
+    check("migration gates the product-images bucket",
+          "'product-images'" in migration and "public.is_admin()" in migration)
+    check("migration does not pin an obsolete inline product list",
+          "Brooklyn Crop Set'., " not in migration and "'Brooklyn Crop Set'," not in migration.split("§3")[1].split("-- The 276")[0] if "§3" in migration else True)
 
     setup_sql = (ROOT / "supabase" / "setup.sql").read_text()
     check("setup.sql has compare_at_ghs + flash_sale", "compare_at_ghs numeric" in setup_sql and "flash_sale boolean not null default false" in setup_sql)
     check("setup.sql constrains dept to fashion", "check (dept in ('fashion'))" in setup_sql)
     check("setup.sql has admin_users + is_admin()", "public.admin_users" in setup_sql and "public.is_admin()" in setup_sql)
-    check("setup.sql creates products storage bucket", "'products', 'products', true" in setup_sql)
+    check("setup.sql creates product-images storage bucket", "'product-images', 'product-images', true" in setup_sql)
+    check("setup.sql gates storage writes on is_admin()", "public.is_admin()" in setup_sql.split("Storage:")[1] if "Storage:" in setup_sql else False)
     check("no bookings table in setup.sql", "public.bookings" not in setup_sql)
+    check("no seller-key auth in setup.sql",
+          "seller_auth" not in setup_sql and "seller_upsert_product" not in setup_sql)
 
     print("=" * 68)
     print("3. JavaScript syntax (node --check)")
@@ -343,6 +346,9 @@ def main() -> None:
         if path.suffix == ".js":
             # ignore warning comments like "never put a service_role key here"
             text = strip_js_comments(text)
+        if path.suffix == ".sql":
+            # ignore comments (e.g. the migration explains it REMOVES seller_key)
+            text = "\n".join(line.split("--")[0] for line in text.splitlines())
         rel = path.relative_to(ROOT).as_posix()
         for pattern, label in [
             (r"service_role", "service_role"),
@@ -352,6 +358,8 @@ def main() -> None:
             (r"adminPassword", "adminPassword"),
             (r"adminEmail", "adminEmail"),
             (r"admin@velloura\.com", "demo admin email"),
+            (r"sellerKey", "sellerKey"),
+            (r"seller_key", "seller_key"),
         ]:
             if re.search(pattern, text):
                 secret_hits.append(f"{rel}: {label}")
@@ -391,13 +399,12 @@ def main() -> None:
     for path in scan_paths:
         rel = path.relative_to(ROOT).as_posix()
         text = path.read_text()
-        if rel == "supabase/migrations/20260909_auth_catalog_alignment.sql":
+        if rel in ("supabase/migrations/20260909_auth_catalog_alignment.sql", "supabase/fix-anon-read.sql"):
             continue  # the migration deliberately drops the bookings table
-        if re.search(r"\bbookings?\b|placeBooking|BOOKINGS_KEY", text, re.I):
-            # allow the historical phase-1 report and audit report
-            if path.suffix == ".md":
-                continue
+        if re.search(r"placeBooking|BOOKINGS_KEY|public\.bookings", text):
             booking_refs.append(rel)
+        elif re.search(r"\bbookings?\b", text, re.I) and path.suffix != ".md":
+            booking_refs.append(f"{rel}: bookings mention")
     check("no booking references in store code/schema", not booking_refs, ", ".join(booking_refs[:6]))
 
     orphan_assets = []

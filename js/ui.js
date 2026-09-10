@@ -1,6 +1,11 @@
 (function () {
+  let isScrolled = false;
   const onScroll = () => {
-    document.body.classList.toggle("scrolled", window.scrollY > 8);
+    const next = window.scrollY > 8;
+    if (next !== isScrolled) {
+      isScrolled = next;
+      document.body.classList.toggle("scrolled", isScrolled);
+    }
   };
   onScroll();
   window.addEventListener("scroll", onScroll, { passive: true });

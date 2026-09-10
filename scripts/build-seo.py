@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import date
 from pathlib import Path
 
 
@@ -22,7 +23,7 @@ def attr(text: str) -> str:
 
 ROOT = Path(__file__).resolve().parents[1]
 SITE = "https://vellouragh.com"
-TODAY = "2026-09-04"
+TODAY = date.today().isoformat()
 
 BAG_PATH = (
     "M18 6h-2V5c0-2.21-1.79-4-4-4S8 2.79 8 5v1H6c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2z"
@@ -67,6 +68,115 @@ def money(value) -> str:
     return f"GHS {int(value)}" if float(value) == int(value) else f"GHS {value}"
 
 
+# ---------------------------------------------------------------
+# Vocabulary + delivery data (single source of truth lives in js/)
+# ---------------------------------------------------------------
+
+def extract_js_block(text: str, marker: str) -> str:
+    start = text.index(marker)
+    start = text.index("{", start)
+    depth = 0
+    for i, ch in enumerate(text[start:], start):
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start:i + 1]
+    raise RuntimeError(f"Could not parse {marker}")
+
+
+def js_to_json(block: str) -> str:
+    block = re.sub(r"//.*?$", "", block, flags=re.M)
+    return re.sub(r"([{,\[]\s*)([A-Za-z_][A-Za-z0-9_-]*)\s*:", r'\1"\2":', block)
+
+
+def load_keywords() -> dict:
+    text = (ROOT / "js" / "keywords.js").read_text()
+    categories = json.loads(js_to_json(extract_js_block(text, "export const CATEGORIES =")))
+    types = json.loads(js_to_json(extract_js_block(text, "export const TYPES =")))
+    m = re.search(r"export const GLOBAL_TERMS = \[(.*?)\]", text, re.S)
+    global_terms = json.loads("[" + m.group(1) + "]") if m else []
+    return {"categories": categories, "types": types, "global_terms": global_terms}
+
+
+def load_delivery() -> list[dict]:
+    text = (ROOT / "js" / "delivery.js").read_text()
+
+    def names(const: str) -> list[str]:
+        m = re.search(rf"const {const} = \[(.*?)\];", text, re.S)
+        return re.findall(r'"([^"]+)"', m.group(1)) if m else []
+
+    def band(const: str) -> tuple[int, str]:
+        m = re.search(rf"const {const} = \{{(.*?)\}};", text, re.S)
+        fee = int(re.search(r"fee:\s*(\d+)", m.group(1)).group(1))
+        days = re.search(r'days:\s*"([^"]+)"', m.group(1)).group(1)
+        return fee, days
+
+    out = []
+    for const, label in (("INNER_NAMES", "inner Accra and Circle"),
+                         ("NEAR_NAMES", "near Pokuase"),
+                         ("FAR_NAMES", "the greater Accra ring")):
+        fee, days = band(const.replace("_NAMES", ""))
+        for name in names(const):
+            out.append({"name": name, "fee": fee, "days": days, "band": label})
+    return sorted(out, key=lambda a: a["name"])
+
+
+def product_types(product: dict) -> list[str]:
+    """Mirror of productTypes() in js/keywords.js — keep the two in step."""
+    text = f"{product.get('name') or ''} {product.get('description') or ''}".lower()
+    out = []
+
+    def has(*needles) -> bool:
+        return any(n in text for n in needles)
+
+    if has("sandals", "slides", "loafers", "heels", "mules", "clogs", "flip-flops", "flip flops", "sneakers", "wedges", "footwear"):
+        out.append("shoes")
+    if has("dress", "maxi", "gown"):
+        out.append("dresses")
+    if has("skirt"):
+        out.append("skirts")
+    if has("set", "two-piece", "two piece", "co-ord"):
+        out.append("sets")
+    if has("tee", "top", "blouse", "shirt"):
+        out.append("tops")
+    if has("trouser", "pants", "jogger"):
+        out.append("trousers")
+    return out
+
+
+# Type slugs that currently have in-stock products; set by main() so chips,
+# footer links and pages only exist for types we actually sell.
+AVAILABLE_TYPES: set[str] = set()
+
+CHIP_LABEL = {
+    "dresses": "Dresses",
+    "skirts": "Skirts",
+    "sets": "Sets",
+    "tops": "Tops",
+    "trousers": "Trousers",
+    "shoes": "Shoes & sandals",
+}
+
+TYPE_SYN = {
+    "shoes": "slides, sandals & loafers",
+    "dresses": "gowns & maxi dresses",
+    "skirts": "midi & office skirts",
+    "sets": "two-piece & co-ord sets",
+    "tops": "tees, shirts & blouses",
+    "trousers": "pants & wide-leg trousers",
+}
+
+
+def type_footer_links(prefix: str) -> str:
+    return "\n        ".join(
+        f'<a href="{prefix}{t["file"]}">{CHIP_LABEL.get(slug, t["label"])}</a>'
+        for slug, t in load_keywords()["types"].items()
+        if slug in AVAILABLE_TYPES
+    )
+
+
 def abs_url(path: str) -> str:
     return f"{SITE}/{path.lstrip('/')}"
 
@@ -91,11 +201,11 @@ LANDINGS = {
         "file": "fashion.html",
         "dept": "fashion",
         "collection": None,
-        "title": "All clothes for women in Accra: dresses, sets, tees | VELLOURA",
-        "h1": "Affordable clothes for women in Accra",
-        "description": "Browse every VELLOURA piece: wrap dresses, modest sets, oversized tees, wide-leg trousers and skirts. Delivery in Greater Accra. Pay with MoMo or card.",
+        "title": "Women's fashion in Accra - streetwear, modest wear & sets | VELLOURA",
+        "h1": "Women's fashion in Accra",
+        "description": "Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with MoMo or card.",
         "keywords": "affordable clothes Accra, dress, skirt, trousers, top, tee, blouse, streetwear, modest, Ghana",
-        "og_image": "assets/products/fashion-ivory-wrap-dress.jpg",
+        "og_image": "assets/hero-clothes.jpg",
         "also": [
             ("Dresses", "fashion.html"),
             ("Streetwear", "streetwear.html"),
@@ -122,7 +232,7 @@ LANDINGS = {
         "h1": "Streetwear for women in Accra",
         "description": "Shop a crop set, oversized tee, wide-leg trousers and a pleated skirt. Everyday streetwear from Accra. Pay with MoMo or card.",
         "keywords": "streetwear, crop, joggers, tee, trousers, skirt, casual, Accra, Ghana",
-        "og_image": "assets/products/fashion-crop-set.jpg",
+        "og_image": "assets/hero-clothes.jpg",
         "also": [
             ("Crop set", "streetwear.html"),
             ("Trousers", "streetwear.html"),
@@ -149,7 +259,7 @@ LANDINGS = {
         "h1": "Modest wear in Accra",
         "description": "Shop a satin maxi dress, a long-line modest set and an ivory wrap dress in Accra. Pay with MoMo or card.",
         "keywords": "modest, maxi, long dress, wrap dress, modest set, Accra, Ghana",
-        "og_image": "assets/products/fashion-modest-maxi.jpg",
+        "og_image": "assets/hero-atelier.jpg",
         "also": [
             ("Maxi dress", "modest.html"),
             ("Wrap dress", "modest.html"),
@@ -181,6 +291,11 @@ def chips_html(prefix: str, active: str) -> str:
     for key, href, label in items:
         cls = "chip active" if key == active else "chip"
         bits.append(f'<a class="{cls}" href="{prefix}{href}" data-collection="{key}">{label}</a>')
+    for slug, t in load_keywords()["types"].items():
+        if slug not in AVAILABLE_TYPES:
+            continue
+        cls = "chip active" if slug == active else "chip"
+        bits.append(f'<a class="{cls}" href="{prefix}{t["file"]}">{CHIP_LABEL.get(slug, t["label"])}</a>')
     return "\n        ".join(bits)
 
 
@@ -250,6 +365,7 @@ def header_footer(prefix: str, active_nav: str = "shop"):
         <a href="{prefix}shop.html">Clothes</a>
         <a href="{prefix}streetwear.html">Streetwear</a>
         <a href="{prefix}modest.html">Modest wear</a>
+        {type_footer_links(prefix)}
         <a href="{prefix}wishlist.html">Saved items</a>
         <a href="{prefix}cart-view.html">View Bag</a>
         <a href="{prefix}track.html">Track order</a>
@@ -334,7 +450,10 @@ def page_shell(title, description, canonical, keywords, extra_head, body_attrs, 
 
 def landing_html(key: str, products: list[dict]) -> str:
     meta = LANDINGS[key]
-    items = filter_products(products, meta["dept"], meta["collection"])
+    if meta.get("types"):
+        items = [p for p in products if meta["types"] in product_types(p) and p.get("in_stock", True)]
+    else:
+        items = filter_products(products, meta["dept"], meta["collection"])
     prices = [p["price_ghs"] for p in items] or [0]
     prefix = ""
     chips_active = meta["collection"] or meta["dept"]
@@ -354,6 +473,9 @@ def landing_html(key: str, products: list[dict]) -> str:
     body_attrs = f' data-default-dept="{meta["dept"]}"'
     if meta["collection"]:
         body_attrs += f' data-default-collection="{meta["collection"]}"'
+    if meta.get("types"):
+        body_attrs += f' data-default-type="{meta["types"]}"'
+        chips_active = meta["types"]
     range_text = f"{money(min(prices))}–{money(max(prices))}" if items else "see product pages"
     json_ld = [
         {
@@ -496,7 +618,7 @@ def product_html(product: dict, siblings: list[dict]) -> str:
             "@type": "Product",
             "name": product["name"],
             "description": product.get("description") or product["name"],
-            "image": abs_url(product["image"]),
+            "image": abs_url(product["image"]) if product.get("image") else abs_url("assets/logo.png"),
             "sku": str(product["id"]),
             "brand": {"@type": "Brand", "name": "VELLOURA"},
             "offers": {
@@ -533,7 +655,7 @@ def product_html(product: dict, siblings: list[dict]) -> str:
 
     <div id="product-detail" class="product-detail">
       <div class="product-media">
-        <img src="{prefix}{h(product["image"])}" alt="{h(product["name"])}">
+        {f'<img src="{prefix}{h(product["image"])}" alt="{h(product["name"])}" decoding="async">' if product.get("image") else '<div class="media-fallback media-fallback-pdp" role="img" aria-label="Photo coming soon"><span>VELLOURA</span><small>photo coming soon</small></div>'}
       </div>
       <div class="product-info">
         <span class="eyebrow">{h(product["dept"])}</span>
@@ -571,7 +693,7 @@ def product_html(product: dict, siblings: list[dict]) -> str:
         desc,
         abs_url(f"p/{slug}.html"),
         keywords,
-        {"og_image": product["image"], "og_type": "product"},
+        {"og_image": product["image"] or "assets/logo.png", "og_type": "product"},
         f' data-product-slug="{h(slug)}"',
         main,
         f'<script type="module" src="{prefix}js/product.js"></script>',
@@ -605,11 +727,206 @@ Sitemap: {SITE}/sitemap.xml
     )
 
 
-def write_sitemap(paths: list[str]):
+def type_meta(slug: str, t: dict, items: list[dict], kw: dict) -> dict:
+    """Landing-page metadata for one product type, from live catalogue data."""
+    prices = [p["price_ghs"] for p in items]
+    sizes = sorted({s for p in items for s in (p.get("sizes") or [])})
+    terms = list(t.get("terms", []))
+    names_prices = ", ".join(f"{p['name']} ({money(p['price_ghs'])})" for p in items[:5])
+    sizes_sentence = ", ".join(sizes) if sizes else "one size as shown"
+    also_line = ", ".join(terms[:8])
+    bands = load_delivery()
+    inner = next(a for a in bands if a["band"].startswith("inner"))
+    near = next(a for a in bands if a["band"].startswith("near"))
+    far = next(a for a in bands if a["band"].startswith("the greater"))
+    others = [
+        (CHIP_LABEL.get(s, tt["label"]), tt["file"])
+        for s, tt in kw["types"].items()
+        if s != slug and s in AVAILABLE_TYPES
+    ]
+    desc = (
+        f"{len(items)} {t['label'].lower()} in stock in Accra, {money(min(prices))} to {money(max(prices))}. "
+        f"Also searched as {', '.join(terms[:3])}. Pay with MoMo or card."
+    )[:160]
+    return {
+        "file": f"{slug}.html",
+        "dept": "fashion",
+        "collection": None,
+        "types": slug,
+        "title": f"{t['label']} in Accra — buy {TYPE_SYN[slug]} | from {money(min(prices))}",
+        "h1": t["h1"],
+        "description": desc,
+        "keywords": ", ".join(terms + t.get("phrases", []) + kw["global_terms"]),
+        "og_image": next((p["image"] for p in items if p.get("image")), "assets/logo.png"),
+        "also": others + [("All clothes", "fashion.html")],
+        "related": [
+            ("Streetwear", "streetwear.html"),
+            ("Modest wear", "modest.html"),
+            ("Shop all", "shop.html"),
+        ],
+        "paragraphs": [
+            f"We keep {len(items)} {t['label'].lower()} on this rail right now: {names_prices}. When a piece sells out it leaves this page, so what you see is what we can send out in Accra today.",
+            f"Customers type many words for the same rail — {also_line}. However you search, the pieces are the same, in sizes {sizes_sentence}. Prices run {money(min(prices))} to {money(max(prices))}, in Ghana cedis, meant to be payable rather than premium.",
+            f"Delivery is GHS {inner['fee']} across inner Accra, GHS {near['fee']} near Pokuase and GHS {far['fee']} on the greater Accra ring, free on orders of GHS 500 and above. Pay with MoMo or card at checkout; we confirm every order on WhatsApp and can send a fitting photo before you confirm.",
+        ],
+        "faqs": [
+            (
+                f"How much do {t['label'].lower()} cost in Accra?",
+                f"Right now {money(min(prices))} to {money(max(prices))}. The price on each piece is the price you pay — no hidden additions at checkout.",
+            ),
+            (
+                f"What sizes are the {t['label'].lower()}?",
+                f"This rail currently runs {sizes_sentence}. Each product page lists the exact sizes we cut for that piece, and we can send a fitting photo on request.",
+            ),
+            (
+                f"Do you deliver {t['label'].lower()} outside Accra?",
+                "We deliver within Greater Accra only. Delivery fees show at checkout before you pay, and orders of GHS 500 and above ship free.",
+            ),
+        ],
+    }
+
+
+def area_html(area: dict, products: list[dict], kw: dict, areas: list[dict]) -> str:
+    """One indexable delivery-coverage page per real delivery area."""
+    name = area["name"]
+    slug = slugify(name)
+    file = f"delivery-{slug}.html"
+    fee_text = "Free" if area["fee"] == 0 else money(area["fee"])
+    prices = [p["price_ghs"] for p in products] or [0]
+    siblings = [a for a in areas if a["band"] == area["band"] and a["name"] != name][:6]
+    sib_links = ", ".join(
+        f'<a href="delivery-{slugify(a["name"])}.html">{h(a["name"])}</a>' for a in siblings
+    ) or "See the checkout area list for the full coverage map."
+    type_links = ", ".join(
+        f'<a href="{t["file"]}">{CHIP_LABEL.get(s, t["label"]).lower()}</a>'
+        for s, t in kw["types"].items()
+        if s in AVAILABLE_TYPES
+    )
+    title = f"Clothes delivery to {name}, Accra — {area['days']}, {fee_text} | VELLOURA"
+    desc = (
+        f"VELLOURA delivers dresses, sets, skirts and tees to {name} in {area['days']} for {fee_text} "
+        f"delivery — free on orders of GHS 500 and above. Pay with MoMo or card."
+    )[:160]
+    keywords = f"clothes delivery {name}, delivery fee {name}, {name} Accra, " + ", ".join(kw["global_terms"])
+    faqs = [
+        (
+            f"How much is delivery to {name}?",
+            f"{fee_text} per order, and free when your order totals GHS 500 or above.",
+        ),
+        (
+            f"How long does delivery to {name} take?",
+            f"{area['days']} from confirmation. We confirm every order on WhatsApp before the rider leaves.",
+        ),
+        (
+            f"Can I pay cash on delivery in {name}?",
+            "Checkout takes payment now — MTN MoMo, Vodafone Cash, AirtelTigo Money or card through Valmont. We confirm on WhatsApp before dispatch, and you can ask for a fitting photo first.",
+        ),
+    ]
+    json_ld = [
+        {
+            "@context": "https://schema.org",
+            "@type": "Service",
+            "name": f"Clothes delivery to {name}, Accra",
+            "serviceType": "Clothing delivery",
+            "areaServed": {"@type": "Place", "name": f"{name}, Greater Accra, Ghana"},
+            "provider": {"@type": "Organization", "name": "VELLOURA", "url": SITE},
+            "offers": {"@type": "Offer", "price": str(area["fee"]), "priceCurrency": "GHS"},
+            "url": abs_url(file),
+        },
+        {
+            "@context": "https://schema.org",
+            "@type": "BreadcrumbList",
+            "itemListElement": [
+                {"@type": "ListItem", "position": 1, "name": "Home", "item": abs_url("index.html")},
+                {"@type": "ListItem", "position": 2, "name": "Shop", "item": abs_url("shop.html")},
+                {"@type": "ListItem", "position": 3, "name": f"Delivery to {name}", "item": abs_url(file)},
+            ],
+        },
+    ]
+    faq_html = "\n      ".join(f"<details><summary>{h(q)}</summary><p>{h(a)}</p></details>" for q, a in faqs)
+    rail_chips = "".join(
+        f'<a class="chip" href="{t["file"]}">{CHIP_LABEL.get(s, t["label"])}</a>'
+        for s, t in kw["types"].items()
+        if s in AVAILABLE_TYPES
+    ) + '<a class="chip" href="shop.html">All</a>'
+    main = f'''    <nav class="breadcrumb" aria-label="Breadcrumb">
+      <a href="index.html">Home</a>
+      <span>/</span>
+      <a href="shop.html">Shop</a>
+      <span>/</span>
+      <span>Delivery to {h(name)}</span>
+    </nav>
+
+    <section class="page-intro">
+      <h1>Clothes delivery to {h(name)}, Accra</h1>
+      <p>{h(area['days'])} · {h(fee_text)} delivery · free from GHS 500</p>
+    </section>
+
+    <section class="seo-copy">
+      <p>Yes — we deliver to {h(name)}. {h(name)} sits in our {h(area['band'])} zone, so delivery is {h(fee_text)} per order and takes {h(area['days'])} once we confirm on WhatsApp. Orders of GHS 500 and above deliver free, anywhere in Greater Accra.</p>
+      <p>Everything in the shop can come to {h(name)}: {type_links} and the full rail of {len(products)} pieces, most priced between {money(min(prices))} and {money(max(prices))}. Open any piece for sizes, colours and photos before you order.</p>
+      <p>Ordering takes a minute: add your pieces, pick {h(name)} as your area at checkout, then Pay with MTN MoMo, Vodafone Cash, AirtelTigo Money or card. We confirm on WhatsApp before the rider leaves, and we can send a fitting photo first if you want to see how a piece sits.</p>
+      <p class="choice-label">Other areas in the {h(area['band'])} zone</p>
+      <p>{sib_links}</p>
+      <p class="choice-label">Shop the rails</p>
+      <div class="related-cats">{rail_chips}</div>
+    </section>
+
+    <section class="section seo-faq">
+      <h2>Questions</h2>
+      {faq_html}
+    </section>'''
+    return page_shell(
+        title,
+        desc,
+        abs_url(file),
+        keywords,
+        {"og_image": "assets/logo.png"},
+        "",
+        main,
+        '<script src="js/ui.js" defer></script>',
+        json_ld=json_ld,
+    )
+
+
+def patch_footer_type_links():
+    links = load_keywords()["types"]
+    skip = {"admin.html", "login.html"}
+    for path in ROOT.glob("*.html"):
+        if path.name in skip:
+            continue
+        text = path.read_text()
+        original = text
+        head, sep, footer = text.partition('<footer class="site-footer">')
+        if not sep:
+            continue
+        for pre in ("", "../"):
+            # Drop stale type links first so the block always matches stock.
+            for slug, t in links.items():
+                for label in (CHIP_LABEL.get(slug, t["label"]), t["label"]):
+                    footer = footer.replace(f'<a href="{pre}{t["file"]}">{label}</a>\n        ', "")
+                    footer = footer.replace(f'<a href="{pre}{t["file"]}">{label}</a>', "")
+            anchor = f'<a href="{pre}modest.html">Modest wear</a>'
+            if anchor in footer:
+                add = "\n        ".join(
+                    f'<a href="{pre}{t["file"]}">{CHIP_LABEL.get(slug, t["label"])}</a>'
+                    for slug, t in links.items()
+                    if slug in AVAILABLE_TYPES
+                )
+                footer = footer.replace(anchor, anchor + "\n        " + add, 1)
+        text = head + sep + footer
+        if text != original:
+            path.write_text(text)
+
+
+def write_sitemap(paths: list[str], priorities: dict[str, str] | None = None):
+    priorities = priorities or {}
     urls = []
     for path in paths:
         loc = SITE + "/" if path == "index.html" else abs_url(path)
-        priority = "1.0" if path == "index.html" else "0.8" if path.endswith(".html") and "/" not in path else "0.6"
+        priority = priorities.get(path) or (
+            "1.0" if path == "index.html" else "0.8" if path.endswith(".html") and "/" not in path else "0.6"
+        )
         urls.append(
             f"""  <url>
     <loc>{h(loc)}</loc>
@@ -708,22 +1025,44 @@ def inject_head(path: Path, canonical: str, title: str | None = None, descriptio
 def update_shop_chips():
     path = ROOT / "shop.html"
     text = path.read_text()
-    old = '''      <div class="choice-group" id="dept-chips">
-        <button class="chip" data-dept="all">All</button>
-        <button class="chip" data-dept="fashion">Fashion</button>
-        <button class="chip" data-dept="jewelry">Jewelry</button>
-        <button class="chip" data-dept="hair">Hair</button>
-        <button class="chip" data-dept="wigs">Wigs</button>
-      </div>'''
     new = f'''      <div class="choice-group" id="dept-chips">
         {chips_html("", "all")}
       </div>'''
-    if old in text:
-        path.write_text(text.replace(old, new))
+    text = re.sub(
+        r'<div class="choice-group" id="dept-chips">.*?</div>',
+        lambda m: new,
+        text,
+        count=1,
+        flags=re.S,
+    )
+    path.write_text(text)
 
 
 def main():
     products = load_products()
+    kw = load_keywords()
+    areas = load_delivery()
+
+    # Keyword meta comes from the vocabulary module, not hardcoded strings.
+    for key, meta in LANDINGS.items():
+        cat = kw["categories"].get(key)
+        if cat:
+            meta["keywords"] = ", ".join(
+                cat.get("terms", []) + cat.get("phrases", []) + kw["global_terms"]
+            )
+
+    # One landing page per product type that actually has stock.
+    type_items = {}
+    for slug, t in kw["types"].items():
+        items = [p for p in products if slug in product_types(p) and p.get("in_stock", True)]
+        if items:
+            AVAILABLE_TYPES.add(slug)
+            type_items[slug] = (t, items)
+        else:
+            (ROOT / f"{slug}.html").unlink(missing_ok=True)
+    for slug, (t, items) in type_items.items():
+        LANDINGS[f"type-{slug}"] = type_meta(slug, t, items, kw)
+
     out_files = []
     for key in LANDINGS:
         html = landing_html(key, products)
@@ -731,6 +1070,14 @@ def main():
         dest.write_text(html)
         out_files.append(LANDINGS[key]["file"])
         print("wrote", dest.name)
+
+    # One coverage page per real delivery area (live fee + days).
+    area_files = []
+    for area in areas:
+        file = f"delivery-{slugify(area['name'])}.html"
+        (ROOT / file).write_text(area_html(area, products, kw, areas))
+        area_files.append(file)
+    print("wrote", len(area_files), "delivery area pages")
 
     pdir = ROOT / "p"
     pdir.mkdir(exist_ok=True)
@@ -745,14 +1092,15 @@ def main():
         print("wrote", dest.relative_to(ROOT))
 
     patch_existing_html()
+    patch_footer_type_links()
     update_shop_chips()
 
     inject_head(
         ROOT / "index.html",
         SITE + "/",
         title="Affordable clothes for women in Accra | VELLOURA",
-        description="Everyday dresses, sets, tees and trousers from Accra. Honest prices. Pay with MoMo or card.",
-        keywords="affordable clothes Accra, dress Ghana, streetwear, modest wear, VELLOURA",
+        description="Everyday dresses, gowns, two-piece sets, skirts, tees and trousers from Accra. Honest prices. Pay with MoMo or card.",
+        keywords="affordable clothes Accra, dress Ghana, gown, two-piece set, skirt, trousers, streetwear, modest wear, VELLOURA",
         json_ld={
             "@context": "https://schema.org",
             "@type": "ClothingStore",
@@ -798,9 +1146,15 @@ def main():
         "privacy.html",
     ]
     write_robots()
-    write_sitemap(static_pages + [LANDINGS[k]["file"] for k in LANDINGS] + [f"p/{p['slug']}.html" for p in products])
+    write_sitemap(
+        static_pages
+        + [LANDINGS[k]["file"] for k in LANDINGS]
+        + area_files
+        + [f"p/{p['slug']}.html" for p in products],
+        priorities={f: "0.7" for f in area_files},
+    )
     print("wrote robots.txt and sitemap.xml")
-    print("products", len(products), "landings", len(LANDINGS))
+    print("products", len(products), "landings", len(LANDINGS), "areas", len(area_files))
 
 
 if __name__ == "__main__":

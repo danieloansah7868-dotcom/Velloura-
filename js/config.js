@@ -15,6 +15,11 @@ export const CONFIG = Object.freeze({
   supabaseUrl: "https://tslvalxmctnjimrbbvsd.supabase.co",
   supabaseAnonKey: "sb_publishable_d6HyDpoKRQiGiND_LH5Nxg_OMZhnK1M",
 
+  // Listing photos. Seller Center uploads to this PUBLIC Storage bucket
+  // (reads are public; uploads/deletes require an authenticated admin —
+  // see supabase/setup.sql and DEPLOYMENT.md).
+  storageBucket: "product-images",
+
   // Checkout payment. The customer sees "Pay"; Valmont is the processor.
   valmontPayUrl: "https://valmontpay.app",
 

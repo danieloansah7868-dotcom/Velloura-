@@ -52,7 +52,25 @@ Public shop items are fashion only (`dept: fashion`, collection `streetwear` or 
 
 The owner can edit products in Seller Center (`admin.html`) or in the Supabase `products` table. Seller Center saves go straight to the database, so edits persist across devices.
 
-When photos arrive, add the file to `assets/products/` and set the `image` field — or upload directly in Seller Center, which stores the photo in the Supabase `products` storage bucket.
+### Listing photos
+
+Each listing holds up to **6 photos**. In Seller Center → Products, the photo manager lets you add photos from your phone or computer, crop/straighten them (✎), reorder them (◀ ★ ▶), and remove them (✕). The **first photo is the cover** shown on shop cards; the product page shows the rest as tappable thumbnails.
+
+Photos are compressed in the browser (long edge 1400px) and then:
+
+- **Supabase connected:** uploaded to the public `product-images` Storage bucket, so listings store real hosted URLs.
+- **Demo mode:** kept as data URLs in the browser only.
+
+To enable hosted uploads and product saving, connect Supabase and run the latest `supabase/setup.sql` (fresh project) or the dated migration in `supabase/migrations/` (existing project). It adds:
+
+1. `images`, `compare_at_ghs` and `flash_sale` columns on `products`.
+2. The public `product-images` Storage bucket — public reads, admin-only uploads/deletes.
+3. Row-level security: only signed-in Seller Center admins (Supabase Auth + the `admin_users` allowlist) can save, edit or delete products.
+
+If a save cannot reach Supabase, Seller Center keeps the change in the browser and shows a yellow notice explaining why. Sign in through `login.html`; see `DEPLOYMENT.md` for the owner setup steps.
+
+Old single-photo listings keep working: the `image` column stays as the cover, and setup.sql seeds `images` from it.
+
 
 ## Deploying
 
