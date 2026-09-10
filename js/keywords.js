@@ -5,14 +5,14 @@
 // 2) visible copy on category landing pages
 // 3) on-site search synonym expansion in shop.js
 // Google ignores the keywords meta tag. Visible title, H1 and body copy matter.
+// The shop delivers in Greater Accra only, so locations are Accra-scoped.
 
-export const LOCATIONS = ["Accra", "Kumasi", "Ghana"];
+export const LOCATIONS = ["Accra"];
 
 export const GLOBAL_TERMS = [
   "momo",
   "mobile money",
   "valmont pay",
-  "delivery Ghana",
   "delivery Accra",
   "women shop Accra"
 ];

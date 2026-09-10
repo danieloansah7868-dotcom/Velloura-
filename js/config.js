@@ -15,27 +15,17 @@ export const CONFIG = Object.freeze({
   supabaseUrl: "https://tslvalxmctnjimrbbvsd.supabase.co",
   supabaseAnonKey: "sb_publishable_d6HyDpoKRQiGiND_LH5Nxg_OMZhnK1M",
 
-  // Listing photos. Seller Center uploads to this PUBLIC Storage bucket.
-  // The bucket and its policies are created by supabase/setup.sql.
+  // Listing photos. Seller Center uploads to this PUBLIC Storage bucket
+  // (reads are public; uploads/deletes require an authenticated admin —
+  // see supabase/setup.sql and DEPLOYMENT.md).
   storageBucket: "product-images",
-
-  // Key for the gated product-write functions (seller_upsert_product /
-  // seller_delete_product) in supabase/setup.sql. Front-door only, like the
-  // Seller Center password — change it HERE and in the seller_auth table
-  // together before launch.
-  sellerKey: "f0d60524a83ce5f25d98478fc3f227d21724a073c907b549",
 
   // Checkout payment. The customer sees "Pay"; Valmont is the processor.
   valmontPayUrl: "https://valmontpay.app",
 
   // Delivery is Greater Accra only. Area fees live in js/delivery.js
   // and can be edited in Seller Center. Not listed on public pages.
-  freeDeliveryThreshold: 500,
-
-  // Seller Center login (change these before launch).
-  // This is a front-door only — it is not bank-grade security.
-  adminEmail: "admin@velloura.com",
-  adminPassword: "velloura"
+  freeDeliveryThreshold: 500
 });
 
 const supabaseReady = Boolean(

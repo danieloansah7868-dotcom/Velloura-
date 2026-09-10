@@ -1,5 +1,5 @@
 import { currentCustomer, logoutCustomer, updateCustomer } from "./customers.js";
-import { listOrders } from "./store.js";
+import { listOrdersLocal } from "./store.js";
 import { formatGHS, escapeHtml, timeGreeting } from "./utils.js";
 import { bindCartDrawerEvents, renderCartDrawer } from "./cart-helpers.js";
 
@@ -38,7 +38,9 @@ function statusLabel(status) {
 
 function renderOrders() {
   if (!ordersEl) return;
-  const orders = listOrders().filter((order) => (
+  // Customer order history is the local copy of orders placed in this
+  // browser (the database only allows order reads by admins, by design).
+  const orders = listOrdersLocal().filter((order) => (
     order.customer_email === customer.email || order.phone === customer.phone
   ));
   if (!orders.length) {

@@ -1,4 +1,4 @@
-import { requireAdmin, logout, currentAdmin } from "./auth.js";
+import { requireAdmin, logout, onAdminAuthChange } from "./auth.js";
 import { formatGHS, escapeHtml, getProductImage, buildWhatsAppLink, normalizeDigits, timeGreeting } from "./utils.js";
 import { listOrders, updateOrderStatus } from "./store.js";
 import { loadProducts, saveProduct, deleteProduct } from "./catalog.js";
@@ -7,7 +7,9 @@ import { listDeliveryAreas, saveDeliveryAreas, DEFAULT_AREAS } from "./delivery.
 import { compressImageSource, openPhotoEditor, PHOTO_MAX_PER_LISTING } from "./photo-editor.js";
 import { uploadProductImage, deleteProductImageByUrl } from "./media.js";
 
-const allowed = requireAdmin();
+// Blocks everything until Supabase Auth + the admin allowlist confirm access.
+// Redirects to login.html otherwise (RLS remains the real security boundary).
+const session = await requireAdmin();
 
 const STATUSES = ["new", "confirmed", "packed", "delivered", "cancelled"];
 
@@ -20,7 +22,6 @@ const customersEl = document.getElementById("admin-customers");
 const deliveryEl = document.getElementById("admin-delivery");
 const tabs = document.querySelectorAll("[data-tab]");
 
-const session = currentAdmin();
 if (emailEl && session) emailEl.textContent = session.email;
 
 const TABS = ["home", "orders", "products", "customers", "delivery"];
@@ -62,9 +63,18 @@ tabs.forEach((tab) => {
 
 window.addEventListener("hashchange", () => showTab(tabFromHash()));
 
-document.getElementById("admin-logout")?.addEventListener("click", () => {
-  logout();
+document.getElementById("admin-logout")?.addEventListener("click", async () => {
+  const btn = document.getElementById("admin-logout");
+  if (btn) btn.disabled = true;
+  window.__vellouraSigningOut = true; // deliberate logout: no "expired" flash
+  await logout();
   window.location.href = "login.html";
+});
+
+// Expired/revoked session (e.g. signed out in another tab): back to login.
+onAdminAuthChange(() => {
+  if (window.__vellouraSigningOut) return;
+  window.location.replace("login.html?next=admin.html&reason=expired");
 });
 
 function statusLabel(status) {
@@ -406,19 +416,27 @@ function bindProductForm(products) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const errorEl = document.getElementById("product-form-error");
+    const fail = (message) => {
+      errorEl.hidden = false;
+      errorEl.textContent = message;
+    };
     errorEl.hidden = true;
     errorEl.textContent = "";
     const data = new FormData(form);
     const name = String(data.get("name") || "").trim();
     const price = Number(data.get("price_ghs"));
+    const compareAtRaw = String(data.get("compare_at_ghs") || "").trim();
+    const compareAt = compareAtRaw === "" ? null : Number(compareAtRaw);
     if (name.length < 2) {
-      errorEl.hidden = false;
-      errorEl.textContent = "Please enter a product name.";
+      fail("Please enter a product name.");
       return;
     }
-    if (!(price >= 0)) {
-      errorEl.hidden = false;
-      errorEl.textContent = "Please enter a valid price.";
+    if (!(price > 0)) {
+      fail("Please enter a valid price above zero.");
+      return;
+    }
+    if (compareAt != null && !(compareAt > price)) {
+      fail("The old price must be empty or higher than the selling price.");
       return;
     }
 
@@ -466,7 +484,7 @@ function bindProductForm(products) {
         pendingPhotoRemovals = [];
         productsNotice = "";
       } else {
-        productsNotice = `Saved in this browser only — Supabase did not accept the change (${result.error || "unknown error"}). Run the latest supabase/setup.sql in the Supabase SQL Editor, check sellerKey in js/config.js, then save this product again.`;
+        productsNotice = `Saved in this browser only — Supabase did not accept the change (${result.error || "unknown error"}). Check that you are still signed in as an admin (Seller Center login), then save this product again.`;
       }
       boot();
       showTab("products");
@@ -768,16 +786,17 @@ function bindAdminClicks() {
     const filterBtn = event.target.closest("[data-order-filter]");
     if (filterBtn) {
       orderFilter = filterBtn.getAttribute("data-order-filter") || "all";
-      renderOrders(listOrders());
+      boot();
       return;
     }
     const openBtn = event.target.closest("[data-open-order]");
     if (openBtn) {
       openOrderCode = openBtn.getAttribute("data-open-order") || "";
       showTab("orders");
-      renderOrders(listOrders());
-      const card = document.getElementById(`order-${openOrderCode}`);
-      if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      boot().then(() => {
+        const card = document.getElementById(`order-${openOrderCode}`);
+        if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
       return;
     }
     const editBtn = event.target.closest("[data-edit-product]");
@@ -797,7 +816,7 @@ function bindAdminClicks() {
       deleteProduct(id)
         .then((res) => {
           productsNotice = res && res.synced === false
-            ? `Removed in this browser only — Supabase still has the product (${res.error || "unknown error"}). Run the latest supabase/setup.sql, check sellerKey in js/config.js, then delete it again.`
+            ? `Removed in this browser only — Supabase still has the product (${res.error || "unknown error"}). Check that you are still signed in as an admin (Seller Center login), then delete it again.`
             : "";
         })
         .catch((err) => {
@@ -811,25 +830,50 @@ function bindAdminClicks() {
   });
 }
 
+// Remembers the image URL per product id so a delete can clean up storage.
+const productImageCache = new Map();
+function rememberProductImages(products) {
+  (products || []).forEach((p) => {
+    productImageCache.set(String(p.id), p.image || "");
+  });
+}
+
 function bindStatusChanges() {
-  document.body.addEventListener("change", (event) => {
+  document.body.addEventListener("change", async (event) => {
     const select = event.target.closest("[data-order]");
     if (!select) return;
-    updateOrderStatus(select.getAttribute("data-order"), select.value);
-    boot();
+    const previous = select.value;
+    select.disabled = true;
+    try {
+      const updated = await updateOrderStatus(select.getAttribute("data-order"), select.value);
+      if (!updated) throw new Error("Order not found.");
+      await boot();
+    } catch (err) {
+      console.error(err);
+      select.value = previous;
+      select.disabled = false;
+      window.alert(err?.message || "Could not update the order. Please try again.");
+    }
   });
 }
 
 let bound = false;
 
 async function boot() {
-  const orders = listOrders();
+  let orders = [];
+  try {
+    orders = await listOrders();
+  } catch (err) {
+    console.error(err);
+    ordersEl.innerHTML = `<div class="admin-card"><h2>Orders</h2><p class="error-text" role="alert">Could not load orders from the database. Refresh the page or try again.</p></div>`;
+  }
   let products = [];
   try {
-    products = await loadProducts();
+    products = await loadProducts({ force: true });
   } catch (err) {
     console.error(err);
   }
+  rememberProductImages(products);
   renderHome(orders, products);
   renderOrders(orders);
   renderProducts(products);
@@ -850,7 +894,7 @@ function updateOrdersNav(orders) {
   link.textContent = pending ? `Orders (${pending})` : "Orders";
 }
 
-if (allowed) {
+if (session) {
   showTab(tabFromHash());
   boot();
 }

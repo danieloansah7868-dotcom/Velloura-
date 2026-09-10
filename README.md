@@ -16,9 +16,9 @@ Official colours: royal blue `#1e2fbd` and wine `#7b1f3b`, on a white background
 python3 -m http.server 8080
 ```
 
-2. The site runs in **demo mode** until you connect Supabase. In demo mode products and orders are stored in the browser only.
+2. The site runs in **demo mode** until you connect Supabase. In demo mode products and orders are stored in the browser only. Seller Center sign-in requires Supabase (real Supabase Auth) and is unavailable in demo mode.
 
-Seller Center (demo): `login.html` — `admin@velloura.com` / `velloura`.
+Seller Center: `login.html` — Supabase Auth (email + password). The account must also be listed in the `admin_users` table; see `DEPLOYMENT.md` and `supabase/bootstrap-admin.sql`.
 
 ## Payment
 
@@ -30,7 +30,11 @@ Real charges need a merchant payment link (`pay.html?access_code=…`) from the 
 
 Project URL and the publishable key live in `js/config.js`. Never put the **service_role** key in the website code.
 
-Open **SQL Editor** in the Supabase project and run `supabase/setup.sql` so the `products` and `orders` tables exist.
+Open **SQL Editor** in the Supabase project and run `supabase/setup.sql` so the `products`, `orders` and `admin_users` tables, RLS policies and the `products` storage bucket exist, then run `supabase/catalog-seed.sql` to load the 7 canonical products.
+
+**Already have tables in the live project?** Run the dated migration in `supabase/migrations/` instead of `setup.sql`, and follow `DEPLOYMENT.md`.
+
+Seller Center sign-in is real Supabase Auth: only accounts listed in `admin_users` (see `supabase/bootstrap-admin.sql`) can open the dashboard, and row-level security enforces the same rule on the database itself.
 
 ## WhatsApp
 
@@ -46,7 +50,7 @@ Use the full international number without the `+` sign.
 
 Public shop items are fashion only (`dept: fashion`, collection `streetwear` or `modest`).
 
-The owner can edit products in Seller Center (`admin.html`) or in the Supabase `products` table.
+The owner can edit products in Seller Center (`admin.html`) or in the Supabase `products` table. Seller Center saves go straight to the database, so edits persist across devices.
 
 ### Listing photos
 
@@ -57,13 +61,13 @@ Photos are compressed in the browser (long edge 1400px) and then:
 - **Supabase connected:** uploaded to the public `product-images` Storage bucket, so listings store real hosted URLs.
 - **Demo mode:** kept as data URLs in the browser only.
 
-To enable hosted uploads and product saving, run the latest `supabase/setup.sql` in the Supabase SQL Editor. It adds:
+To enable hosted uploads and product saving, connect Supabase and run the latest `supabase/setup.sql` (fresh project) or the dated migration in `supabase/migrations/` (existing project). It adds:
 
 1. `images`, `compare_at_ghs` and `flash_sale` columns on `products`.
-2. The public `product-images` Storage bucket and its policies.
-3. `seller_upsert_product` / `seller_delete_product` functions gated by a seller key.
+2. The public `product-images` Storage bucket — public reads, admin-only uploads/deletes.
+3. Row-level security: only signed-in Seller Center admins (Supabase Auth + the `admin_users` allowlist) can save, edit or delete products.
 
-The seller key lives in `js/config.js` (`sellerKey`) and in the private `seller_auth` table — **change both together before launch**, like the Seller Center password. If a save cannot reach Supabase, Seller Center keeps the change in the browser and shows a yellow notice explaining why.
+If a save cannot reach Supabase, Seller Center keeps the change in the browser and shows a yellow notice explaining why. Sign in through `login.html`; see `DEPLOYMENT.md` for the owner setup steps.
 
 Old single-photo listings keep working: the `image` column stays as the cover, and setup.sql seeds `images` from it.
 

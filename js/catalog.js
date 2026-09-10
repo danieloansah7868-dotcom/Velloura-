@@ -4047,10 +4047,11 @@ export async function loadProducts({ force = false } = {}) {
 }
 
 // Save a product. Always updates the browser store first so Seller Center
-// reacts instantly, then syncs to Supabase through the gated
-// seller_upsert_product function (supabase/setup.sql).
+// reacts instantly, then writes to Supabase directly. The write only
+// succeeds for a signed-in admin (row level security on public.products —
+// see supabase/setup.sql).
 // Resolves { product, synced, error } — synced=false means the change lives
-// in this browser only and the owner should re-run setup.sql / check the key.
+// in this browser only and the owner should check the Seller Center login.
 export async function saveProduct(input) {
   const products = readStore() || getLocalProducts();
   const images = (Array.isArray(input.images) ? input.images : [])
@@ -4075,32 +4076,35 @@ export async function saveProduct(input) {
     const ready = await waitForSupabase();
     const sb = ready ? getSupabaseClient() : null;
     if (!sb) throw new Error("Supabase is not connected.");
-    const payload = {
-      id: product.id,
+    const numericId = Number(product.id);
+    const row = {
       dept: product.dept || "fashion",
-      collection: product.collection || "",
+      collection: product.collection || null,
       name: product.name,
-      description: product.description || "",
-      price_ghs: product.price_ghs,
-      compare_at_ghs: product.compare_at_ghs == null ? "" : product.compare_at_ghs,
+      description: product.description || null,
+      price_ghs: Number(product.price_ghs),
+      compare_at_ghs: product.compare_at_ghs == null ? null : Number(product.compare_at_ghs),
       flash_sale: product.flash_sale === true,
-      sizes: product.sizes,
-      colors: product.colors,
-      badge: product.badge || "",
+      sizes: Array.isArray(product.sizes) ? product.sizes : [],
+      colors: Array.isArray(product.colors) ? product.colors : [],
+      badge: product.badge || null,
       in_stock: product.in_stock !== false,
-      image: product.image || "",
-      images: product.images,
-      sort_order: product.sort_order || 0
+      sort_order: Number(product.sort_order || 0),
+      image: product.image || null,
+      images: (product.images || []).map((src) => String(src || "").trim()).filter(Boolean)
     };
-    const { data, error } = await sb.rpc("seller_upsert_product", {
-      p_key: String(CONFIG.sellerKey || ""),
-      p_product: payload
-    });
+    if (Number.isInteger(numericId) && numericId > 0) row.id = numericId;
+    const { data, error } = await sb
+      .from("products")
+      .upsert(row, { onConflict: "id" })
+      .select()
+      .single();
     if (error) throw new Error(error.message || "Supabase rejected the save.");
     if (data && typeof data === "object") {
       const saved = normalizeProduct(data);
       const list = readStore() || [];
-      const i = list.findIndex((p) => stringId(p.id) === stringId(product.id));
+      const i = list.findIndex((p) => stringId(p.id) === stringId(product.id)
+        || stringId(p.id) === stringId(saved.id));
       if (i >= 0) list[i] = saved;
       else list.push(saved);
       writeStore(list);
@@ -4128,10 +4132,11 @@ export async function deleteProduct(id) {
     const ready = await waitForSupabase();
     const sb = ready ? getSupabaseClient() : null;
     if (!sb) throw new Error("Supabase is not connected.");
-    const { error } = await sb.rpc("seller_delete_product", {
-      p_key: String(CONFIG.sellerKey || ""),
-      p_id: stringId(id)
-    });
+    const numericId = Number(id);
+    if (!Number.isInteger(numericId) || numericId <= 0) {
+      throw new Error("This product has no database row yet (browser only).");
+    }
+    const { error } = await sb.from("products").delete().eq("id", numericId);
     if (error) throw new Error(error.message || "Supabase rejected the delete.");
     result.synced = true;
   } catch (err) {
