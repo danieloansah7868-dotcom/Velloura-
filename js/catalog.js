@@ -29,8 +29,8 @@ const LOCAL_PRODUCTS = [
     collection: "streetwear",
     name: "Oversized Navy Tee",
     description: "An oversized cotton tee in navy. Everyday wear, nothing extra.",
-    price_ghs: 90,
-    compare_at_ghs: 120,
+    price_ghs: 150,
+    compare_at_ghs: 200,
     flash_sale: true,
     sizes: ["XS", "S", "M", "L", "XL"],
     colors: ["Royal Navy", "White", "Black"],
@@ -103,7 +103,7 @@ const LOCAL_PRODUCTS = [
     collection: "streetwear",
     name: "Burgundy Pleated Skirt",
     description: "A modern burgundy pleated midi skirt with a soft movement.",
-    price_ghs: 130,
+    price_ghs: 150,
     compare_at_ghs: 170,
     flash_sale: true,
     sizes: ["XS", "S", "M", "L"],
@@ -116,7 +116,21 @@ const LOCAL_PRODUCTS = [
 ];
 
 let productsCache = null;
-const PRODUCTS_KEY = "velloura_products_v4";
+const PRODUCTS_KEY = "velloura_products_v5";
+const LEGACY_PRODUCTS_KEYS = ["velloura_products_v4", "velloura_products_v3"];
+
+// Drop caches written by older versions (they could contain localStorage-only
+// admin edits that must never override fresh database rows).
+function dropLegacyStores() {
+  LEGACY_PRODUCTS_KEYS.forEach((key) => {
+    try {
+      localStorage.removeItem(key);
+    } catch (err) {
+      /* storage unavailable */
+    }
+  });
+}
+dropLegacyStores();
 
 function readStore() {
   try {
@@ -145,6 +159,7 @@ function normalizeProduct(row) {
   const sizes = Array.isArray(row.sizes) ? row.sizes : [];
   const colors = Array.isArray(row.colors) ? row.colors : [];
   const id = stringId(row.id);
+  const compareAt = row.compare_at_ghs == null || row.compare_at_ghs === "" ? null : Number(row.compare_at_ghs);
   return {
     id,
     dept: row.dept,
@@ -152,6 +167,8 @@ function normalizeProduct(row) {
     name: row.name,
     description: row.description || "",
     price_ghs: Number(row.price_ghs),
+    compare_at_ghs: compareAt != null && Number.isFinite(compareAt) && compareAt > 0 ? compareAt : null,
+    flash_sale: row.flash_sale === true || row.flash_sale === "true",
     sizes,
     colors,
     badge: row.badge || null,
@@ -224,24 +241,68 @@ export async function loadProducts({ force = false } = {}) {
   return base.map(cloneProduct);
 }
 
-export function saveProduct(input) {
+function toDbRow(input, nextSort) {
+  const id = String(input.id || "").trim();
+  const compareAt = input.compare_at_ghs == null || input.compare_at_ghs === "" ? null : Number(input.compare_at_ghs);
+  const row = {
+    dept: "fashion",
+    collection: input.collection === "modest" || input.collection === "streetwear" ? input.collection : "streetwear",
+    name: String(input.name || "").trim(),
+    description: String(input.description || "").trim() || null,
+    price_ghs: Number(input.price_ghs),
+    compare_at_ghs: compareAt != null && Number.isFinite(compareAt) ? compareAt : null,
+    flash_sale: input.flash_sale === true,
+    sizes: Array.isArray(input.sizes) ? input.sizes : [],
+    colors: Array.isArray(input.colors) ? input.colors : [],
+    badge: String(input.badge || "").trim() || null,
+    in_stock: input.in_stock !== false,
+    sort_order: Number(input.sort_order || nextSort || 0),
+    image: String(input.image || "").trim() || null
+  };
+  const numericId = Number(id);
+  if (id && Number.isInteger(numericId) && numericId > 0) row.id = numericId;
+  return row;
+}
+
+/**
+ * Seller Center save. Inserts/updates the real public.products row and
+ * resolves with the normalized database row. The localStorage copy is only
+ * the storefront's offline fallback, refreshed from the DB row here.
+ */
+export async function saveProduct(input) {
   const products = readStore() || getLocalProducts();
-  const product = normalizeProduct({
-    ...input,
-    id: input.id || `p-${Date.now()}`,
-    sort_order: input.sort_order || products.length + 1
-  });
+  const row = toDbRow(input, products.length + 1);
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Seller Center needs Supabase. Connect the project in js/config.js first.");
+  const { data, error } = await sb
+    .from("products")
+    .upsert(row, { onConflict: "id" })
+    .select()
+    .single();
+  if (error) throw error;
+  const product = normalizeProduct(data);
   const idx = products.findIndex((p) => stringId(p.id) === stringId(product.id));
   if (idx >= 0) products[idx] = { ...products[idx], ...product };
   else products.push(product);
   writeStore(products);
+  productsCache = products.map(cloneProduct);
   return cloneProduct(product);
 }
 
-export function deleteProduct(id) {
+/** Seller Center delete. Removes the database row and refreshes the fallback cache. */
+export async function deleteProduct(id) {
+  const numericId = Number(id);
+  if (!Number.isInteger(numericId) || numericId <= 0) {
+    throw new Error("That product cannot be deleted. Refresh and try again.");
+  }
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Seller Center needs Supabase. Connect the project in js/config.js first.");
+  const { error } = await sb.from("products").delete().eq("id", numericId);
+  if (error) throw error;
   const products = (readStore() || getLocalProducts())
     .filter((p) => stringId(p.id) !== stringId(id));
   writeStore(products);
+  productsCache = products.map(cloneProduct);
   return products.map(cloneProduct);
 }
 

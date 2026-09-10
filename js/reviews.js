@@ -7,12 +7,9 @@ const SEED = {
     { id: "r1", name: "Ama", rating: 5, text: "Soft set and true to size. I wore it the same week.", created_at: "2026-08-12T10:00:00.000Z" },
     { id: "r2", name: "Efua", rating: 4, text: "Nice fit. Colour is a bit darker than the photo.", created_at: "2026-08-20T14:00:00.000Z" }
   ],
-  "8": [
-    { id: "r3", name: "Akosua", rating: 5, text: "Light on the ear and they look expensive.", created_at: "2026-07-30T09:00:00.000Z" }
-  ],
-  "13": [
-    { id: "r4", name: "Yaa", rating: 5, text: "Glueless and easy to wear. Hair is soft.", created_at: "2026-08-05T16:20:00.000Z" },
-    { id: "r5", name: "Nana", rating: 4, text: "Pretty wig. Took a day extra to arrive in Kumasi.", created_at: "2026-08-18T11:00:00.000Z" }
+  "16": [
+    { id: "r4", name: "Yaa", rating: 5, text: "The wide leg falls nicely. Easy to iron and wear.", created_at: "2026-08-05T16:20:00.000Z" },
+    { id: "r5", name: "Nana", rating: 4, text: "Pretty set. Arrived the next day.", created_at: "2026-08-18T11:00:00.000Z" }
   ],
   "15": [
     { id: "r6", name: "Serwaa", rating: 5, text: "The wrap dress is easy and the fabric feels good.", created_at: "2026-08-22T13:00:00.000Z" }

@@ -20,12 +20,7 @@ export const CONFIG = Object.freeze({
 
   // Delivery is Greater Accra only. Area fees live in js/delivery.js
   // and can be edited in Seller Center. Not listed on public pages.
-  freeDeliveryThreshold: 500,
-
-  // Seller Center login (change these before launch).
-  // This is a front-door only — it is not bank-grade security.
-  adminEmail: "admin@velloura.com",
-  adminPassword: "velloura"
+  freeDeliveryThreshold: 500
 });
 
 const supabaseReady = Boolean(

@@ -20,7 +20,7 @@ Checkout shows **Pay**, with Valmont underneath (`https://valmontpay.app`). No p
 
 ## What the owner must review before launch
 
-1. Run `supabase/setup.sql` in her own Supabase project.
+1. Follow `DEPLOYMENT.md` (migration, auth setup, admin allowlist, live checks).
 2. Confirm WhatsApp `233556555317` in `js/config.js`.
 3. Add the real Supabase URL and anon key in `js/config.js`.
 4. Create a Valmont Pay merchant link and wire `access_code` when she has one.
@@ -33,4 +33,4 @@ Checkout shows **Pay**, with Valmont underneath (`https://valmontpay.app`). No p
 
 - Only the publishable anon Supabase key belongs in the site (currently empty = demo mode).
 - No Valmont, Paystack or service-role secrets.
-- Seller Center password `velloura` is a front door only — change it before launch.
+- The old demo Seller Center password (since removed) was a front door only. Seller Center now requires real Supabase Auth plus membership in `admin_users` — see `DEPLOYMENT.md`.

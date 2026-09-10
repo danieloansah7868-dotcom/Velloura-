@@ -1,11 +1,14 @@
-import { requireAdmin, logout, currentAdmin } from "./auth.js";
+import { requireAdmin, logout, onAdminAuthChange } from "./auth.js";
 import { formatGHS, escapeHtml, getProductImage, buildWhatsAppLink, normalizeDigits, timeGreeting } from "./utils.js";
 import { listOrders, updateOrderStatus } from "./store.js";
 import { loadProducts, saveProduct, deleteProduct } from "./catalog.js";
 import { listCustomers } from "./customers.js";
 import { listDeliveryAreas, saveDeliveryAreas, DEFAULT_AREAS } from "./delivery.js";
+import { uploadProductImage, removeProductImageQuietly, storedImagePath } from "./storage.js";
 
-const allowed = requireAdmin();
+// Blocks everything until Supabase Auth + the admin allowlist confirm access.
+// Redirects to login.html otherwise (RLS remains the real security boundary).
+const session = await requireAdmin();
 
 const STATUSES = ["new", "confirmed", "packed", "delivered", "cancelled"];
 
@@ -18,7 +21,6 @@ const customersEl = document.getElementById("admin-customers");
 const deliveryEl = document.getElementById("admin-delivery");
 const tabs = document.querySelectorAll("[data-tab]");
 
-const session = currentAdmin();
 if (emailEl && session) emailEl.textContent = session.email;
 
 const TABS = ["home", "orders", "products", "customers", "delivery"];
@@ -53,9 +55,18 @@ tabs.forEach((tab) => {
 
 window.addEventListener("hashchange", () => showTab(tabFromHash()));
 
-document.getElementById("admin-logout")?.addEventListener("click", () => {
-  logout();
+document.getElementById("admin-logout")?.addEventListener("click", async () => {
+  const btn = document.getElementById("admin-logout");
+  if (btn) btn.disabled = true;
+  window.__vellouraSigningOut = true; // deliberate logout: no "expired" flash
+  await logout();
   window.location.href = "login.html";
+});
+
+// Expired/revoked session (e.g. signed out in another tab): back to login.
+onAdminAuthChange(() => {
+  if (window.__vellouraSigningOut) return;
+  window.location.replace("login.html?next=admin.html&reason=expired");
 });
 
 function statusLabel(status) {
@@ -223,15 +234,6 @@ function productFormHTML(product) {
     </form>`;
 }
 
-function readFileAsDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = () => reject(new Error("Could not read the photo."));
-    reader.readAsDataURL(file);
-  });
-}
-
 function bindProductForm(products) {
   const form = document.getElementById("product-form");
   if (!form) return;
@@ -241,43 +243,74 @@ function bindProductForm(products) {
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
     const errorEl = document.getElementById("product-form-error");
+    const submitBtn = form.querySelector('button[type="submit"]');
     const data = new FormData(form);
     const file = form.elements.namedItem("file")?.files?.[0];
     let image = String(data.get("image") || "").trim();
-    try {
-      if (file) image = await readFileAsDataUrl(file);
-    } catch (err) {
+    let uploadedPath = "";
+    errorEl.hidden = true;
+    const fail = (message) => {
       errorEl.hidden = false;
-      errorEl.textContent = err.message;
-      return;
-    }
+      errorEl.textContent = message;
+    };
     const name = String(data.get("name") || "").trim();
     const price = Number(data.get("price_ghs"));
+    const compareAtRaw = String(data.get("compare_at_ghs") || "").trim();
+    const compareAt = compareAtRaw === "" ? null : Number(compareAtRaw);
     if (name.length < 2) {
-      errorEl.hidden = false;
-      errorEl.textContent = "Please enter a product name.";
+      fail("Please enter a product name.");
       return;
     }
-    if (!(price >= 0)) {
-      errorEl.hidden = false;
-      errorEl.textContent = "Please enter a valid price.";
+    if (!(price > 0)) {
+      fail("Please enter a valid price above zero.");
       return;
     }
-    saveProduct({
-      id: String(data.get("id") || ""),
-      name,
-      dept: String(data.get("dept") || "fashion"),
-      collection: String(data.get("collection") || "").trim(),
-      description: String(data.get("description") || "").trim(),
-      price_ghs: price,
-      sizes: splitList(data.get("sizes")),
-      colors: splitList(data.get("colors")),
-      badge: String(data.get("badge") || "").trim(),
-      in_stock: String(data.get("in_stock")) !== "false",
-      image
-    });
-    boot();
-    showTab("products");
+    if (compareAt != null && !(compareAt > price)) {
+      fail("The old price must be empty or higher than the selling price.");
+      return;
+    }
+    if (submitBtn) {
+      submitBtn.disabled = true;
+      submitBtn.textContent = "Saving…";
+    }
+    try {
+      if (file) {
+        const uploaded = await uploadProductImage(file);
+        uploadedPath = uploaded.path;
+        image = uploaded.url;
+      }
+      await saveProduct({
+        id: String(data.get("id") || ""),
+        name,
+        dept: "fashion",
+        collection: String(data.get("collection") || "streetwear").trim(),
+        description: String(data.get("description") || "").trim(),
+        price_ghs: price,
+        compare_at_ghs: compareAt,
+        flash_sale: String(data.get("flash_sale")) === "true",
+        sizes: splitList(data.get("sizes")),
+        colors: splitList(data.get("colors")),
+        badge: String(data.get("badge") || "").trim(),
+        in_stock: String(data.get("in_stock")) !== "false",
+        sort_order: products.find((p) => String(p.id) === String(data.get("id") || ""))?.sort_order,
+        image
+      });
+      // Clear the file input so the same photo is not re-uploaded on the next save.
+      const fileInput = form.elements.namedItem("file");
+      if (fileInput) fileInput.value = "";
+      await boot();
+      showTab("products");
+    } catch (err) {
+      console.error(err);
+      // Do not leave an orphan object if the row save failed.
+      if (uploadedPath) await removeProductImageQuietly(uploadedPath);
+      fail(err?.message || "Could not save the product. Please try again.");
+    } finally {
+      if (submitBtn) {
+        submitBtn.disabled = false;
+        submitBtn.textContent = String(data.get("id") || "") ? "Save changes" : "Add product";
+      }
+    }
   });
 }
 
@@ -556,16 +589,17 @@ function bindAdminClicks() {
     const filterBtn = event.target.closest("[data-order-filter]");
     if (filterBtn) {
       orderFilter = filterBtn.getAttribute("data-order-filter") || "all";
-      renderOrders(listOrders());
+      boot();
       return;
     }
     const openBtn = event.target.closest("[data-open-order]");
     if (openBtn) {
       openOrderCode = openBtn.getAttribute("data-open-order") || "";
       showTab("orders");
-      renderOrders(listOrders());
-      const card = document.getElementById(`order-${openOrderCode}`);
-      if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      boot().then(() => {
+        const card = document.getElementById(`order-${openOrderCode}`);
+        if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
       return;
     }
     const editBtn = event.target.closest("[data-edit-product]");
@@ -582,32 +616,68 @@ function bindAdminClicks() {
       const id = deleteBtn.getAttribute("data-delete-product");
       const ok = window.confirm("Delete this product from the shop?");
       if (!ok) return;
-      deleteProduct(id);
-      boot();
-      showTab("products");
+      deleteBtn.disabled = true;
+      const removedImage = productImageCache.get(String(id)) || "";
+      deleteProduct(id)
+        .then(async () => {
+          const objectPath = storedImagePath(removedImage);
+          if (objectPath) await removeProductImageQuietly(objectPath);
+          await boot();
+          showTab("products");
+        })
+        .catch((err) => {
+          console.error(err);
+          deleteBtn.disabled = false;
+          window.alert(err?.message || "Could not delete the product. Please try again.");
+        });
     }
   });
 }
 
+// Remembers the image URL per product id so a delete can clean up storage.
+const productImageCache = new Map();
+function rememberProductImages(products) {
+  (products || []).forEach((p) => {
+    productImageCache.set(String(p.id), p.image || "");
+  });
+}
+
 function bindStatusChanges() {
-  document.body.addEventListener("change", (event) => {
+  document.body.addEventListener("change", async (event) => {
     const select = event.target.closest("[data-order]");
     if (!select) return;
-    updateOrderStatus(select.getAttribute("data-order"), select.value);
-    boot();
+    const previous = select.value;
+    select.disabled = true;
+    try {
+      const updated = await updateOrderStatus(select.getAttribute("data-order"), select.value);
+      if (!updated) throw new Error("Order not found.");
+      await boot();
+    } catch (err) {
+      console.error(err);
+      select.value = previous;
+      select.disabled = false;
+      window.alert(err?.message || "Could not update the order. Please try again.");
+    }
   });
 }
 
 let bound = false;
 
 async function boot() {
-  const orders = listOrders();
+  let orders = [];
+  try {
+    orders = await listOrders();
+  } catch (err) {
+    console.error(err);
+    ordersEl.innerHTML = `<div class="admin-card"><h2>Orders</h2><p class="error-text" role="alert">Could not load orders from the database. Refresh the page or try again.</p></div>`;
+  }
   let products = [];
   try {
-    products = await loadProducts();
+    products = await loadProducts({ force: true });
   } catch (err) {
     console.error(err);
   }
+  rememberProductImages(products);
   renderHome(orders, products);
   renderOrders(orders);
   renderProducts(products);
@@ -628,7 +698,7 @@ function updateOrdersNav(orders) {
   link.textContent = pending ? `Orders (${pending})` : "Orders";
 }
 
-if (allowed) {
+if (session) {
   showTab(tabFromHash());
   boot();
 }

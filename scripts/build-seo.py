@@ -106,7 +106,7 @@ LANDINGS = {
         "paragraphs": [
             "VELLOURA is starting with clothes. Just affordable pieces for ordinary days in Accra: streetwear, modest sets and maxi dresses.",
             "People search for a dress, a skirt, trousers, a tee or a set. Those words are the clothes on this page. Prices are Ghana cedis and they are meant to be payable, not premium. We do not add a size we do not cut, and we do not mark a piece in stock if it is gone.",
-            "Order from your phone. Pay with MoMo or card, then we confirm on WhatsApp. Delivery is GHS 20 in Accra, GHS 30 in Kumasi and GHS 40 to other regions. Orders of GHS 500 and above ship free. Ask for a fitting photo before you confirm if you want to see how a dress or set sits.",
+            "Order from your phone. Pay with MoMo or card, then we confirm on WhatsApp. Delivery is within Greater Accra only — pick your area at checkout and the fee and days show there. Orders of GHS 500 and above ship free. Ask for a fitting photo before you confirm if you want to see how a dress or set sits.",
         ],
         "faqs": [
             ("Do you have dresses and trousers in Accra?", "Yes. This page is the clothing we sell now — dresses, sets, trousers, skirts, tees and blouses. Open a piece to see sizes."),
@@ -133,7 +133,7 @@ LANDINGS = {
         "paragraphs": [
             "Streetwear here is the casual clothing we keep in Accra: a two-piece crop set, an oversized tee, high-waist wide-leg trousers and a burgundy pleated midi skirt. It is everyday wear, not a runway drop.",
             "If you want a crop, joggers, a tee, trousers or a casual skirt, start on this page. Modest maxi dresses are listed separately so this grid stays honest.",
-            "Sizes are on each product. We can send a fitting photo before you confirm. Pay with MoMo or card. Delivery is GHS 20 in Accra, GHS 30 in Kumasi, GHS 40 elsewhere, free from GHS 500.",
+            "Sizes are on each product. We can send a fitting photo before you confirm. Pay with MoMo or card. Delivery is within Greater Accra only, and orders of GHS 500 and above ship free.",
             "If a crop or skirt sells out, it leaves this list. We do not keep a ghost product to look busy. Prices stay in a range you can pay — this is everyday wear, not a luxury drop.",
         ],
         "faqs": [
@@ -160,7 +160,7 @@ LANDINGS = {
         "paragraphs": [
             "Modest wear at VELLOURA is the longer, covered clothing we stock: a long-sleeve satin maxi, a long-line top with wide trousers, and an ivory wrap dress. These are not short street sets.",
             "If you searched for a maxi, a long dress or a modest set, the three pieces below are the current list. We do not pad this page with crop tops.",
-            "Ask for a fitting photo if you want to see length on a body before you pay. Pay with MoMo or card. We deliver nationwide.",
+            "Ask for a fitting photo if you want to see length on a body before you pay. Pay with MoMo or card. Delivery is within Greater Accra only.",
             "Returns on unworn clothing are within 3 days. Message WhatsApp first. Streetwear is listed on its own page so you are not sorting maxi dresses out of crop sets.",
         ],
         "faqs": [
@@ -470,7 +470,7 @@ def product_extra(product: dict) -> str:
         bits.append("This sits on the modest wear rail — longer, covered clothing, not a crop set.")
     if product.get("collection") == "streetwear":
         bits.append("This is everyday streetwear: casual clothes for ordinary days.")
-    bits.append("Pay with MoMo or card (MoMo or card). Delivery is GHS 20 in Accra, GHS 30 in Kumasi and GHS 40 to other regions. Orders of GHS 500 and above ship free.")
+    bits.append("Pay with MoMo or card (MoMo or card). Delivery is within Greater Accra only — pick your area at checkout. Orders of GHS 500 and above ship free.")
     return " ".join(bits)
 
 
@@ -684,8 +684,16 @@ def inject_head(path: Path, canonical: str, title: str | None = None, descriptio
     extras = []
     if 'rel="canonical"' not in text:
         extras.append(f'  <link rel="canonical" href="{h(canonical)}">')
-    if keywords and 'name="keywords"' not in text:
-        extras.append(f'  <meta name="keywords" content="{h(keywords)}">')
+    if keywords:
+        if 'name="keywords"' in text:
+            text = re.sub(
+                r'<meta name="keywords" content="[^"]*">',
+                f'<meta name="keywords" content="{h(keywords)}">',
+                text,
+                count=1,
+            )
+        else:
+            extras.append(f'  <meta name="keywords" content="{h(keywords)}">')
     if json_ld and "application/ld+json" not in text:
         extras.append(
             '  <script type="application/ld+json">\n'
@@ -757,7 +765,7 @@ def main():
                 "addressLocality": "Accra",
                 "addressCountry": "GH",
             },
-            "areaServed": ["Accra", "Kumasi", "Ghana"],
+            "areaServed": ["Accra", "Greater Accra"],
             "sameAs": ["https://www.instagram.com/vellouragh"],
         },
     )
@@ -775,7 +783,7 @@ def main():
         },
     )
     inject_head(ROOT / "about.html", abs_url("about.html"), keywords="VELLOURA, Accra, Ghana, women's brand")
-    inject_head(ROOT / "contact.html", abs_url("contact.html"), keywords="VELLOURA contact, WhatsApp Accra, 0556555317")
+    inject_head(ROOT / "contact.html", abs_url("contact.html"), keywords="VELLOURA contact, WhatsApp Accra, 055 655 5317")
     inject_head(ROOT / "delivery-returns.html", abs_url("delivery-returns.html"))
     inject_head(ROOT / "terms.html", abs_url("terms.html"))
     inject_head(ROOT / "privacy.html", abs_url("privacy.html"))

@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2" defer></script>
 </head>
 <body class="auth-body">
   <main class="auth-wrap">
@@ -31,7 +32,7 @@
         <input id="password" name="password" type="password" autocomplete="current-password" required>
       </div>
 
-      <p id="login-error" class="error-text" hidden></p>
+      <p id="login-error" class="error-text" role="alert" hidden></p>
       <button class="btn btn-primary btn-full" type="submit">Log in</button>
       <a class="auth-back" href="index.html">← Back to shop</a>
     </form>

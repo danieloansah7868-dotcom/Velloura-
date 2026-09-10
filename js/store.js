@@ -1,6 +1,7 @@
-// Cart and order/booking persistence.
+// Cart and order persistence.
 // - Demo mode: localStorage so the full journey works before Supabase is connected.
-// - Supabase mode: anonymous inserts into public.orders and public.bookings.
+// - Supabase mode: anonymous inserts into public.orders; order tracking uses
+//   the track_order RPC; Seller Center reads/updates orders as an admin.
 
 import { CONFIG, isDemoMode } from "./config.js";
 import { normalizeDigits, stringId, timeGreeting, orderStatusLabel } from "./utils.js";
@@ -9,7 +10,6 @@ import { areaDeliveryFee, areaDeliveryDays, getDeliveryArea } from "./delivery.j
 
 const CART_KEY = "velloura_cart_v1";
 const ORDERS_KEY = "velloura_orders_v1";
-const BOOKINGS_KEY = "velloura_bookings_v1";
 
 function readJson(key, fallback) {
   try {
@@ -111,10 +111,6 @@ function makeOrderCode() {
   return `VEL-${1000 + Math.floor(Math.random() * 9000)}`;
 }
 
-function makeBookingCode() {
-  return `VEL-H${2000 + Math.floor(Math.random() * 8000)}`;
-}
-
 export async function placeOrder(payload) {
   const code = makeOrderCode();
   const record = {
@@ -179,11 +175,30 @@ export async function placeOrder(payload) {
   throw lastError || new Error("Could not save the order.");
 }
 
-export function listOrders() {
+export function listOrdersLocal() {
   const orders = readJson(ORDERS_KEY, []);
   return Array.isArray(orders)
     ? orders.slice().sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
     : [];
+}
+
+/**
+ * Seller Center order list. Reads from public.orders (admin RLS). Falls back
+ * to the local copy only when Supabase is not configured (demo mode).
+ */
+export async function listOrders() {
+  if (isDemoMode) return listOrdersLocal();
+  const ready = await waitForSupabase();
+  if (!ready) throw new Error("Supabase JS library is not loaded.");
+  const sb = getSupabaseClient();
+  if (!sb) throw new Error("Supabase is not connected.");
+  const { data, error } = await sb
+    .from("orders")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(200);
+  if (error) throw error;
+  return data || [];
 }
 
 export function findOrder(code, phone) {
@@ -222,45 +237,41 @@ export async function findOrderRemote(code, phone) {
   }
 }
 
-export function updateOrderStatus(code, status) {
-  const orders = readJson(ORDERS_KEY, []);
-  const order = orders.find((o) => o.order_code === code);
-  if (order) order.status = status;
-  writeJson(ORDERS_KEY, orders);
-  return order;
-}
-
-export async function placeBooking(payload) {
-  const code = makeBookingCode();
-  const record = {
-    booking_code: code,
-    service: payload.service,
-    day: payload.day,
-    time_slot: payload.time_slot,
-    customer_name: payload.customer_name,
-    phone: normalizeDigits(payload.phone),
-    status: "new"
-  };
-
-  if (isDemoMode) {
-    const bookings = readJson(BOOKINGS_KEY, []);
-    bookings.push({ ...record, created_at: new Date().toISOString() });
-    writeJson(BOOKINGS_KEY, bookings);
-    return { code, record };
+/**
+ * Seller Center status change. Updates the real public.orders row and
+ * resolves with the returned database row. Demo mode updates the local copy.
+ */
+export async function updateOrderStatus(code, status) {
+  const cleanStatus = String(status || "").trim().toLowerCase();
+  if (!/^(new|confirmed|packed|delivered|cancelled)$/.test(cleanStatus)) {
+    throw new Error("Unknown order status.");
   }
-
+  if (isDemoMode) {
+    const orders = readJson(ORDERS_KEY, []);
+    const order = orders.find((o) => o.order_code === code);
+    if (order) order.status = cleanStatus;
+    writeJson(ORDERS_KEY, orders);
+    return order || null;
+  }
+  const ready = await waitForSupabase();
+  if (!ready) throw new Error("Supabase JS library is not loaded.");
   const sb = getSupabaseClient();
   if (!sb) throw new Error("Supabase is not connected.");
-  let lastError = null;
-  for (let attempt = 0; attempt < 3; attempt += 1) {
-    const currentCode = attempt === 0 ? code : makeBookingCode();
-    const currentRecord = { ...record, booking_code: currentCode };
-    const { error } = await sb.from("bookings").insert(currentRecord);
-    if (!error) return { code: currentCode, record: currentRecord };
-    lastError = error;
-    if (!/unique|duplicate|23505/i.test(`${error.message || ""} ${error.code || ""}`)) break;
+  const { data, error } = await sb
+    .from("orders")
+    .update({ status: cleanStatus })
+    .eq("order_code", String(code || "").trim())
+    .select()
+    .single();
+  if (error) throw error;
+  // Keep the local copy (fallback + demo history) in sync with the DB.
+  const orders = readJson(ORDERS_KEY, []);
+  const local = orders.find((o) => o.order_code === data.order_code);
+  if (local) {
+    local.status = data.status;
+    writeJson(ORDERS_KEY, orders);
   }
-  throw lastError || new Error("Could not save the booking.");
+  return data;
 }
 
 export function buildOrderSummaryText(record) {
@@ -268,18 +279,5 @@ export function buildOrderSummaryText(record) {
     `${timeGreeting()},`,
     `Order number: ${record.order_code}`,
     `Status: ${orderStatusLabel(record.status)}.`
-  ].join("\n");
-}
-
-export function buildBookingSummaryText(record) {
-  return [
-    "Hi Velloura, I would like to book a hair appointment.",
-    `Booking code: ${record.booking_code}`,
-    `Service: ${record.service}`,
-    `Day: ${record.day}`,
-    `Time: ${record.time_slot}`,
-    `Customer: ${record.customer_name}`,
-    `Phone: ${record.phone}`,
-    "Please confirm my seat."
   ].join("\n");
 }

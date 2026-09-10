@@ -26,7 +26,7 @@ sandbox has **no outbound network**, so live-Supabase and in-browser checks (§1
 
 | id | Sev | Area | Evidence | Impact | Fix | Status |
 |---|---|---|---|---|---|---|
-| F1 | CRITICAL | Security | `login.html:36` `Demo login: admin@velloura.com / velloura` (brief says it was removed) | Admin creds advertised publicly | Remove hint | **FIXED** |
+| F1 | CRITICAL | Security | `login.html:36` advertised the demo admin credentials (email + a weak password, since rotated/redacted) | Admin creds advertised publicly | Remove hint | **FIXED** |
 | F2 | HIGH | SEO/copy | `build-seo.py:192` "We deliver across Ghana" vs `index.html`/`shop.html`/`delivery-returns.html` "Greater Accra only"; rebuild dirtied 10 files | Contradictory delivery claim; generated pages out of sync | Generator now says "Delivery in Greater Accra"; rebuild is clean | **FIXED** |
 | F3 | HIGH | SEO | `fashion.html` title+description byte-identical to `index.html` | Cannibalisation | Unique title/description for fashion landing | **FIXED** |
 | F4 | HIGH | SEO | `index.html:15` canonical `…/index.html`; sitemap lists `/index.html` | Split signals between `/` and `/index.html` | Both now `https://vellouragh.com/` | **FIXED** |
