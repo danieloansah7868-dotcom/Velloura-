@@ -409,6 +409,52 @@ def main() -> None:
     check("no orphan product images", not orphan_assets, ", ".join(orphan_assets))
 
     print("=" * 68)
+    print("10. AI-look rules (gradient text/buttons, glass, pills, emojis, dashes)")
+    print("=" * 68)
+    css = (ROOT / "css" / "styles.css").read_text()
+    check("no gradient text (background-clip / text-fill-color)",
+          not re.search(r"background-clip|-webkit-text-fill-color|text-fill-color", css))
+    check("no backdrop-filter / glass surfaces", "backdrop-filter" not in css)
+    btn_rules = re.findall(r"([^{}]*\.btn[^{}]*\{[^{}]*\})", css)
+    gradient_btns = [r[:40] for r in btn_rules if "gradient" in r]
+    check("no gradient buttons", not gradient_btns, "; ".join(gradient_btns))
+    btn_radii = [re.search(r"border-radius:\s*([^;]+);", r).group(1).strip()
+                 for r in btn_rules if "border-radius" in r]
+    pill_btns = [r for r in btn_radii if "999" in r or "50%" in r]
+    check("primary buttons are not pills", not pill_btns, ", ".join(pill_btns))
+
+    emoji_re = re.compile(
+        "[\U0001F000-\U0001FAFF\U00002600-\U000027BF\U0001F1E6-\U0001F1FF"
+        "\U00002B00-\U00002BFF\U0000FE0F\U0000200D]"
+    )
+
+    def visible_text(html: str) -> str:
+        html = re.sub(r"<head\b.*?</head>", "", html, flags=re.S | re.I)
+        html = re.sub(r"<(script|style|svg|noscript)\b.*?</\1>", "", html, flags=re.S | re.I)
+        html = re.sub(r"<!--.*?-->", "", html, flags=re.S)
+        return re.sub(r"<[^>]+>", " ", html)
+
+    dash_bad = []
+    emoji_bad = []
+    for page in html_files:
+        raw = page.read_text()
+        text = visible_text(raw)
+        count = text.count("\u2014")
+        if count > 2:
+            dash_bad.append(f"{page.relative_to(ROOT)}: {count} em dashes in copy")
+        for tag in re.findall(r"<h[123]\b[^>]*>(.*?)</h[123]>", raw, flags=re.S | re.I):
+            plain = re.sub(r"<[^>]+>", " ", tag)
+            if "\u2014" in plain:
+                dash_bad.append(f"{page.relative_to(ROOT)}: em dash in heading {plain.strip()[:40]!r}")
+            if emoji_re.search(plain):
+                emoji_bad.append(f"{page.relative_to(ROOT)}: emoji in heading {plain.strip()[:40]!r}")
+    check("max 2 em dashes per page, none in headings", not dash_bad, "; ".join(dash_bad[:5]))
+    check("no emojis in headings", not emoji_bad, "; ".join(emoji_bad[:5]))
+
+    reviews_js = (ROOT / "js" / "reviews.js").read_text()
+    check("no seeded/invented reviews", "SEED" not in reviews_js)
+
+    print("=" * 68)
     if FAIL:
         print(f"RESULT: {PASS} passed, {FAIL} FAILED")
         for failure in FAILURES:

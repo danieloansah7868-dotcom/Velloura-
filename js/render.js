@@ -26,7 +26,10 @@ export function productCardHTML(product) {
         : saleBadge;
   const saved = isSaved(product.id);
   const rating = ratingSummary(product.id);
-  const ratingLine = `<span class="card-rating"><span class="stars">${starsText(rating.average)}</span> ${rating.count ? `${rating.average} (${rating.count})` : "(0)"}</span>`;
+  // Only show stars once at least one real review exists in this browser.
+  const ratingLine = rating.count
+    ? `<span class="card-rating"><span class="stars">${starsText(rating.average)}</span> ${rating.average} (${rating.count})</span>`
+    : "";
   const priceLine = was > Number(product.price_ghs)
     ? `<span class="product-card-price"><span class="price-now">${price}</span> <span class="price-was">${formatGHS(was)}</span>${off ? ` <span class="price-off">-${off}%</span>` : ""}</span>`
     : `<span class="product-card-price">${price}</span>`;

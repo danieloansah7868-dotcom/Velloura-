@@ -91,7 +91,7 @@ LANDINGS = {
         "file": "fashion.html",
         "dept": "fashion",
         "collection": None,
-        "title": "All clothes for women in Accra — dresses, sets, tees | VELLOURA",
+        "title": "All clothes for women in Accra: dresses, sets, tees | VELLOURA",
         "h1": "Affordable clothes for women in Accra",
         "description": "Browse every VELLOURA piece: wrap dresses, modest sets, oversized tees, wide-leg trousers and skirts. Delivery in Greater Accra. Pay with MoMo or card.",
         "keywords": "affordable clothes Accra, dress, skirt, trousers, top, tee, blouse, streetwear, modest, Ghana",
@@ -106,10 +106,10 @@ LANDINGS = {
         "paragraphs": [
             "VELLOURA is starting with clothes. Just affordable pieces for ordinary days in Accra: streetwear, modest sets and maxi dresses.",
             "People search for a dress, a skirt, trousers, a tee or a set. Those words are the clothes on this page. Prices are Ghana cedis and they are meant to be payable, not premium. We do not add a size we do not cut, and we do not mark a piece in stock if it is gone.",
-            "Order from your phone. Pay with MoMo or card, then we confirm on WhatsApp. Delivery is within Greater Accra only — pick your area at checkout and the fee and days show there. Orders of GHS 500 and above ship free. Ask for a fitting photo before you confirm if you want to see how a dress or set sits.",
+            "Order from your phone. Pay with MoMo or card, then we confirm on WhatsApp. Delivery is within Greater Accra only. Pick your area at checkout and the fee and days show there. Orders of GHS 500 and above ship free. Ask for a fitting photo before you confirm if you want to see how a dress or set sits.",
         ],
         "faqs": [
-            ("Do you have dresses and trousers in Accra?", "Yes. This page is the clothing we sell now — dresses, sets, trousers, skirts, tees and blouses. Open a piece to see sizes."),
+            ("Do you have dresses and trousers in Accra?", "Yes. This page is the clothing we sell now: dresses, sets, trousers, skirts, tees and blouses. Open a piece to see sizes."),
             ("How do I pay?", "Checkout asks you to Pay now. Valmont takes MTN MoMo, Vodafone Cash, AirtelTigo or card."),
             ("What if it does not fit?", "Ask for a fitting photo on clothing before you confirm. Unworn items can be returned within 3 days."),
         ],
@@ -134,7 +134,7 @@ LANDINGS = {
             "Streetwear here is the casual clothing we keep in Accra: a two-piece crop set, an oversized tee, high-waist wide-leg trousers and a burgundy pleated midi skirt. It is everyday wear, not a runway drop.",
             "If you want a crop, joggers, a tee, trousers or a casual skirt, start on this page. Modest maxi dresses are listed separately so this grid stays honest.",
             "Sizes are on each product. We can send a fitting photo before you confirm. Pay with MoMo or card. Delivery is within Greater Accra only, and orders of GHS 500 and above ship free.",
-            "If a crop or skirt sells out, it leaves this list. We do not keep a ghost product to look busy. Prices stay in a range you can pay — this is everyday wear, not a luxury drop.",
+            "If a crop or skirt sells out, it leaves this list. We do not keep a ghost product to look busy. Prices stay in a range you can pay. This is everyday wear, not a luxury drop.",
         ],
         "faqs": [
             ("What counts as streetwear at Velloura?", "The crop set, oversized tee, wide-leg trousers and pleated skirt on this page."),
@@ -454,7 +454,7 @@ def landing_html(key: str, products: list[dict]) -> str:
 
 
 DEPT_COPY = {
-    "fashion": "This is clothing from VELLOURA in Accra — everyday pieces at prices you can pay. Sizes on this page are the sizes we cut. Ask for a fitting photo on WhatsApp before you confirm if you want to see how it sits.",
+    "fashion": "This is clothing from VELLOURA in Accra: everyday pieces at prices you can pay. Sizes on this page are the sizes we cut. Ask for a fitting photo on WhatsApp before you confirm if you want to see how it sits.",
 }
 
 CAT_FILE = {
@@ -467,10 +467,10 @@ CAT_FILE = {
 def product_extra(product: dict) -> str:
     bits = [DEPT_COPY.get(product["dept"], "A piece from VELLOURA in Accra.")]
     if product.get("collection") == "modest":
-        bits.append("This sits on the modest wear rail — longer, covered clothing, not a crop set.")
+        bits.append("This sits on the modest wear rail: longer, covered clothing, not a crop set.")
     if product.get("collection") == "streetwear":
         bits.append("This is everyday streetwear: casual clothes for ordinary days.")
-    bits.append("Pay with MoMo or card (MoMo or card). Delivery is within Greater Accra only — pick your area at checkout. Orders of GHS 500 and above ship free.")
+    bits.append("Pay with MoMo or card (MoMo or card). Delivery is within Greater Accra only. Pick your area at checkout. Orders of GHS 500 and above ship free.")
     return " ".join(bits)
 
 
